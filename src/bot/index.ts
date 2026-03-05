@@ -60,6 +60,10 @@ import { handleDocumentMessage } from "./handlers/document.js";
 import { downloadTelegramFile, toDataUri } from "./utils/file-download.js";
 import { sendMessageWithMarkdownFallback } from "./utils/send-with-markdown-fallback.js";
 import { extractCommandName } from "./utils/commands.js";
+import {
+  isOperationAbortedSessionError,
+  SessionErrorThrottle,
+} from "./utils/session-error-filter.js";
 import { getModelCapabilities, supportsInput } from "../model/capabilities.js";
 import { getStoredModel } from "../model/manager.js";
 import { getCurrentProject } from "../settings/manager.js";
@@ -109,6 +113,7 @@ function getTargetBySessionId(
 
 const TELEGRAM_DOCUMENT_CAPTION_MAX_LENGTH = 1024;
 const SESSION_RETRY_PREFIX = "🔁";
+const sessionErrorThrottle = new SessionErrorThrottle(3000);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const TEMP_DIR = path.join(__dirname, "..", ".tmp");
@@ -467,6 +472,17 @@ async function ensureEventSubscription(directory: string): Promise<void> {
     await toolMessageBatcher.flushSession(sessionId, "session_error");
 
     const normalizedMessage = message.trim() || t("common.unknown_error");
+
+    if (isOperationAbortedSessionError(normalizedMessage)) {
+      logger.info(`[Bot] Suppressing session.abort error notification for ${sessionId}`);
+      return;
+    }
+
+    if (sessionErrorThrottle.shouldSuppress(sessionId, normalizedMessage)) {
+      logger.debug(`[Bot] Suppressing duplicate session.error notification for ${sessionId}`);
+      return;
+    }
+
     const truncatedMessage =
       normalizedMessage.length > 3500
         ? `${normalizedMessage.slice(0, 3497)}...`

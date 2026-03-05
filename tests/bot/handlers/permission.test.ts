@@ -291,4 +291,30 @@ describe("bot/handlers/permission", () => {
     expect(permissionManager.isActive()).toBe(false);
     expect(interactionManager.getSnapshot()).toBeNull();
   });
+
+  it("retries permission message without markdown when Telegram rejects entities", async () => {
+    const botApi = createBotApi(800);
+    const sendMessageMock = botApi.sendMessage as unknown as ReturnType<typeof vi.fn>;
+
+    sendMessageMock
+      .mockRejectedValueOnce(
+        new Error(
+          "400: Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 35",
+        ),
+      )
+      .mockResolvedValueOnce({ message_id: 801 });
+
+    const request = createPermissionRequest("perm-markdown-fallback");
+    request.patterns = ["npm run lint\nnpm test"];
+
+    await showPermissionRequest(botApi, 777, request, "global", null);
+
+    expect(sendMessageMock).toHaveBeenCalledTimes(2);
+    expect(sendMessageMock.mock.calls[0]?.[2]).toMatchObject({ parse_mode: "Markdown" });
+    expect(sendMessageMock.mock.calls[1]?.[2]).not.toHaveProperty("parse_mode");
+
+    expect(permissionManager.getRequestID(801)).toBe("perm-markdown-fallback");
+    expect(permissionManager.getPendingCount()).toBe(1);
+    expect(interactionManager.getSnapshot()?.kind).toBe("permission");
+  });
 });

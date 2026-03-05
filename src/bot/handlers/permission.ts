@@ -10,6 +10,7 @@ import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { PermissionRequest, PermissionReply } from "../../permission/types.js";
 import type { I18nKey } from "../../i18n/en.js";
 import { t } from "../../i18n/index.js";
+import { sendMessageWithMarkdownFallback } from "../utils/send-with-markdown-fallback.js";
 import { getScopeKeyFromContext, getThreadSendOptions } from "../scope.js";
 
 // Permission type display names
@@ -250,10 +251,15 @@ export async function showPermissionRequest(
   const keyboard = buildPermissionKeyboard();
 
   try {
-    const message = await bot.sendMessage(chatId, text, {
-      reply_markup: keyboard,
-      parse_mode: "Markdown",
-      ...getThreadSendOptions(threadId),
+    const message = await sendMessageWithMarkdownFallback({
+      api: bot,
+      chatId,
+      text,
+      options: {
+        reply_markup: keyboard,
+        ...getThreadSendOptions(threadId),
+      },
+      parseMode: "Markdown",
     });
 
     logger.debug(`[PermissionHandler] Message sent, messageId=${message.message_id}`);
