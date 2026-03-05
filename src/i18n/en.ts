@@ -108,6 +108,11 @@ export const en = {
     "⚠️ Session control commands are disabled in DM. Use a group topic thread for project/session work.",
   "dm.restricted.prompt":
     "⚠️ Prompts are disabled in DM. Use a group topic thread to run OpenCode tasks.",
+  "help.dm.title": "DM control commands",
+  "help.dm.command_start": "show DM mode guidance",
+  "help.dm.hint": "Use group topic threads for project/session work.",
+  "status.dm.title": "DM status overview",
+  "status.dm.hint": "Use group topic threads to run OpenCode sessions.",
 
   "projects.empty":
     "📭 No projects found.\n\nOpen a directory in OpenCode and create at least one session, then it will appear here.",

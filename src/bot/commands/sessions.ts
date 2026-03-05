@@ -16,7 +16,7 @@ import { logger } from "../../utils/logger.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { config } from "../../config.js";
 import { getDateLocale, t } from "../../i18n/index.js";
-import { getScopeFromContext, getScopeKeyFromContext } from "../scope.js";
+import { getScopeFromContext, getScopeKeyFromContext, getThreadSendOptions } from "../scope.js";
 
 const SESSION_CALLBACK_PREFIX = "session:";
 const SESSION_PAGE_CALLBACK_PREFIX = "session:page:";
@@ -264,6 +264,7 @@ export async function handleSessionSelect(ctx: Context): Promise<boolean> {
         const loadingMessage = await ctx.api.sendMessage(
           ctx.chat.id,
           t("sessions.loading_context"),
+          getThreadSendOptions(scope?.threadId ?? null),
         );
         loadingMessageId = loadingMessage.message_id;
       } catch (err) {
@@ -328,6 +329,7 @@ export async function handleSessionSelect(ctx: Context): Promise<boolean> {
       try {
         await ctx.api.sendMessage(chatId, t("sessions.selected", { title: session.title }), {
           reply_markup: keyboard,
+          ...getThreadSendOptions(scope?.threadId ?? null),
         });
       } catch (err) {
         logger.error("[Sessions] Failed to send selection message:", err);
@@ -340,6 +342,7 @@ export async function handleSessionSelect(ctx: Context): Promise<boolean> {
           sendSessionPreview(
             ctx.api,
             chatId,
+            scope?.threadId ?? null,
             null,
             session.title,
             session.id,
@@ -353,7 +356,11 @@ export async function handleSessionSelect(ctx: Context): Promise<boolean> {
     clearInteractionWithScope("session_select_error", scopeKey);
     logger.error("[Sessions] Error selecting session:", error);
     await ctx.answerCallbackQuery();
-    await ctx.reply(t("sessions.select_error"));
+    if (scope?.threadId != null) {
+      await ctx.reply(t("sessions.select_error"), getThreadSendOptions(scope.threadId));
+    } else {
+      await ctx.reply(t("sessions.select_error"));
+    }
   }
 
   return true;
@@ -464,6 +471,7 @@ function formatSessionPreview(_sessionTitle: string, items: SessionPreviewItem[]
 async function sendSessionPreview(
   api: Context["api"],
   chatId: number,
+  threadId: number | null,
   messageId: number | null,
   sessionTitle: string,
   sessionId: string,
@@ -482,7 +490,7 @@ async function sendSessionPreview(
   }
 
   try {
-    await api.sendMessage(chatId, finalText);
+    await api.sendMessage(chatId, finalText, getThreadSendOptions(threadId));
   } catch (err) {
     logger.error("[Sessions] Failed to send session preview message:", err);
   }

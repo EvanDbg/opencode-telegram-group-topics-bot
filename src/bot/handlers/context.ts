@@ -9,7 +9,7 @@ import {
 } from "./inline-menu.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
-import { getScopeKeyFromContext } from "../scope.js";
+import { getScopeFromContext, getScopeKeyFromContext, getThreadSendOptions } from "../scope.js";
 
 /**
  * Build inline keyboard with compact confirmation menu
@@ -30,12 +30,13 @@ export function buildCompactConfirmationMenu(): InlineKeyboard {
  */
 export async function handleContextButtonPress(ctx: Context): Promise<void> {
   logger.debug("[ContextHandler] Context button pressed");
+  const scope = getScopeFromContext(ctx);
   const scopeKey = getScopeKeyFromContext(ctx);
 
   const session = getCurrentSession(scopeKey);
 
   if (!session) {
-    await ctx.reply(t("context.no_active_session"));
+    await ctx.reply(t("context.no_active_session"), getThreadSendOptions(scope?.threadId ?? null));
     return;
   }
 
@@ -68,13 +69,17 @@ export async function handleCompactConfirm(ctx: Context): Promise<boolean> {
   logger.debug("[ContextHandler] Compact confirmed");
 
   try {
+    const scope = getScopeFromContext(ctx);
     const scopeKey = getScopeKeyFromContext(ctx);
     const session = getCurrentSession(scopeKey);
 
     if (!session) {
       clearActiveInlineMenu("context_session_missing", scopeKey);
       await ctx.answerCallbackQuery({ text: t("context.callback_session_not_found") });
-      await ctx.reply(t("context.no_active_session"));
+      await ctx.reply(
+        t("context.no_active_session"),
+        getThreadSendOptions(scope?.threadId ?? null),
+      );
       await ctx.deleteMessage().catch(() => {});
       return true;
     }
@@ -85,7 +90,10 @@ export async function handleCompactConfirm(ctx: Context): Promise<boolean> {
     await ctx.deleteMessage().catch(() => {});
 
     // Send progress message
-    const progressMessage = await ctx.reply(t("context.progress"));
+    const progressMessage = await ctx.reply(
+      t("context.progress"),
+      getThreadSendOptions(scope?.threadId ?? null),
+    );
 
     // Show typing indicator
     await ctx.api.sendChatAction(ctx.chat!.id, "typing");
@@ -124,7 +132,10 @@ export async function handleCompactConfirm(ctx: Context): Promise<boolean> {
     clearActiveInlineMenu("context_compact_error", getScopeKeyFromContext(ctx));
     logger.error("[ContextHandler] Compact exception:", err);
     await ctx.answerCallbackQuery({ text: t("callback.processing_error") }).catch(() => {});
-    await ctx.reply(t("context.error"));
+    await ctx.reply(
+      t("context.error"),
+      getThreadSendOptions(getScopeFromContext(ctx)?.threadId ?? null),
+    );
     await ctx.deleteMessage().catch(() => {});
     return false;
   }

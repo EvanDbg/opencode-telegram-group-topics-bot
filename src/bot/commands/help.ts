@@ -9,6 +9,23 @@ function formatHelpText(): string {
   return `📖 ${t("cmd.description.help")}\n\n${lines.join("\n")}\n\n${t("help.keyboard_hint")}`;
 }
 
+function formatDmHelpText(): string {
+  const lines = [
+    `/start - ${t("help.dm.command_start")}`,
+    `/status - ${t("cmd.description.status")}`,
+    `/help - ${t("cmd.description.help")}`,
+    `/opencode_start - ${t("cmd.description.opencode_start")}`,
+    `/opencode_stop - ${t("cmd.description.opencode_stop")}`,
+  ];
+
+  return `📖 ${t("help.dm.title")}\n\n${lines.join("\n")}\n\n${t("help.dm.hint")}`;
+}
+
 export async function helpCommand(ctx: Context): Promise<void> {
+  if (ctx.chat?.type === "private") {
+    await ctx.reply(formatDmHelpText());
+    return;
+  }
+
   await ctx.reply(formatHelpText());
 }

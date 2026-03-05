@@ -391,4 +391,9 @@ export const de: I18nDictionary = {
     "⚠️ Sitzungs-Steuerbefehle sind im DM deaktiviert. Nutze einen Gruppen-Topic-Thread für Projekt-/Sitzungsarbeit.",
   "dm.restricted.prompt":
     "⚠️ Prompts sind im DM deaktiviert. Nutze einen Gruppen-Topic-Thread, um OpenCode-Aufgaben auszuführen.",
+  "help.dm.title": "DM-Steuerbefehle",
+  "help.dm.command_start": "DM-Modus-Hinweise anzeigen",
+  "help.dm.hint": "Nutze Gruppen-Topic-Threads für Projekt-/Sitzungsarbeit.",
+  "status.dm.title": "DM-Statusübersicht",
+  "status.dm.hint": "Nutze Gruppen-Topic-Threads, um OpenCode-Sitzungen auszuführen.",
 };

@@ -390,4 +390,9 @@ export const es: I18nDictionary = {
     "⚠️ Los comandos de control de sesión están deshabilitados en DM. Usa un hilo de tema en grupo para trabajar con proyectos/sesiones.",
   "dm.restricted.prompt":
     "⚠️ Los prompts están deshabilitados en DM. Usa un hilo de tema en grupo para ejecutar tareas de OpenCode.",
+  "help.dm.title": "Comandos de control en DM",
+  "help.dm.command_start": "mostrar guía del modo DM",
+  "help.dm.hint": "Usa hilos de tema en grupo para trabajo de proyecto/sesión.",
+  "status.dm.title": "Resumen de estado en DM",
+  "status.dm.hint": "Usa hilos de tema en grupo para ejecutar sesiones de OpenCode.",
 };

@@ -26,6 +26,41 @@ export async function statusCommand(ctx: CommandContext<Context>) {
       throw error || new Error("No data received from server");
     }
 
+    if (isPrivateChat) {
+      const [projectsResult, sessionsResult] = await Promise.all([
+        opencodeClient.project.list(),
+        opencodeClient.session.list({ limit: 200 }),
+      ]);
+
+      const projectCount = projectsResult.data?.length ?? 0;
+      const sessionCount = sessionsResult.data?.length ?? 0;
+
+      const healthLabel = data.healthy ? t("status.health.healthy") : t("status.health.unhealthy");
+      let dmMessage = `📊 ${t("status.dm.title")}\n\n`;
+      dmMessage += `${t("status.line.health", { health: healthLabel })}\n`;
+      if (data.version) {
+        dmMessage += `${t("status.line.version", { version: data.version })}\n`;
+      }
+
+      if (processManager.isRunning()) {
+        const uptime = processManager.getUptime();
+        const uptimeStr = uptime ? Math.floor(uptime / 1000) : 0;
+        dmMessage += `${t("status.line.managed_yes")}\n`;
+        dmMessage += `${t("status.line.pid", { pid: processManager.getPID() ?? "-" })}\n`;
+        dmMessage += `${t("status.line.uptime_sec", { seconds: uptimeStr })}\n`;
+      } else {
+        dmMessage += `${t("status.line.managed_no")}\n`;
+      }
+
+      dmMessage += `\n${t("status.global_overview")}\n`;
+      dmMessage += `${t("status.global_projects", { count: projectCount })}\n`;
+      dmMessage += `${t("status.global_sessions", { count: sessionCount })}\n\n`;
+      dmMessage += t("status.dm.hint");
+
+      await ctx.reply(dmMessage);
+      return;
+    }
+
     let message = `${t("status.header_running")}\n\n`;
     const healthLabel = data.healthy ? t("status.health.healthy") : t("status.health.unhealthy");
     message += `${t("status.line.health", { health: healthLabel })}\n`;
@@ -73,21 +108,7 @@ export async function statusCommand(ctx: CommandContext<Context>) {
       message += t("status.session_hint");
     }
 
-    if (isPrivateChat) {
-      const [projectsResult, sessionsResult] = await Promise.all([
-        opencodeClient.project.list(),
-        opencodeClient.session.list({ limit: 200 }),
-      ]);
-
-      const projectCount = projectsResult.data?.length ?? 0;
-      const sessionCount = sessionsResult.data?.length ?? 0;
-
-      message += `\n${t("status.global_overview")}\n`;
-      message += `${t("status.global_projects", { count: projectCount })}\n`;
-      message += `${t("status.global_sessions", { count: sessionCount })}`;
-    }
-
-    if (ctx.chat && !isPrivateChat) {
+    if (ctx.chat) {
       if (usePinned && !pinnedMessageManager.isInitialized(scopeKey)) {
         pinnedMessageManager.initialize(ctx.api, ctx.chat.id, scopeKey, scope?.threadId ?? null);
       }
@@ -96,17 +117,15 @@ export async function statusCommand(ctx: CommandContext<Context>) {
       }
       keyboardManager.initialize(ctx.api, ctx.chat.id, scopeKey);
     }
-    if (!isPrivateChat) {
-      const contextInfo =
-        (usePinned ? pinnedMessageManager.getContextInfo(scopeKey) : null) ??
-        keyboardManager.getContextInfo(scopeKey);
-      if (contextInfo) {
-        keyboardManager.updateContext(contextInfo.tokensUsed, contextInfo.tokensLimit, scopeKey);
-      } else if (usePinned && pinnedMessageManager.getContextLimit(scopeKey) > 0) {
-        keyboardManager.updateContext(0, pinnedMessageManager.getContextLimit(scopeKey), scopeKey);
-      }
+    const contextInfo =
+      (usePinned ? pinnedMessageManager.getContextInfo(scopeKey) : null) ??
+      keyboardManager.getContextInfo(scopeKey);
+    if (contextInfo) {
+      keyboardManager.updateContext(contextInfo.tokensUsed, contextInfo.tokensLimit, scopeKey);
+    } else if (usePinned && pinnedMessageManager.getContextLimit(scopeKey) > 0) {
+      keyboardManager.updateContext(0, pinnedMessageManager.getContextLimit(scopeKey), scopeKey);
     }
-    const keyboard = isPrivateChat ? undefined : keyboardManager.getKeyboard(scopeKey);
+    const keyboard = keyboardManager.getKeyboard(scopeKey);
     if (ctx.chat) {
       await sendMessageWithMarkdownFallback({
         api: ctx.api,

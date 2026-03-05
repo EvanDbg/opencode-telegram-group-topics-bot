@@ -341,4 +341,9 @@ export const zh: I18nDictionary = {
   "status.global_sessions": "会话数：{count}",
   "dm.restricted.command": "⚠️ 私聊中已禁用会话控制命令。请使用群组话题线程进行项目/会话工作。",
   "dm.restricted.prompt": "⚠️ 私聊中已禁用任务输入。请使用群组话题线程运行 OpenCode 任务。",
+  "help.dm.title": "私聊控制命令",
+  "help.dm.command_start": "显示私聊模式说明",
+  "help.dm.hint": "请使用群组话题线程进行项目/会话工作。",
+  "status.dm.title": "私聊状态概览",
+  "status.dm.hint": "请使用群组话题线程运行 OpenCode 会话。",
 };
