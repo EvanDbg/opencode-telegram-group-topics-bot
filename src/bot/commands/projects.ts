@@ -32,7 +32,6 @@ import {
 import { getTopicBindingsByChat } from "../../topic/manager.js";
 import { BOT_I18N_KEY, TELEGRAM_CHAT_FIELD } from "../constants.js";
 
-const MAX_INLINE_BUTTON_LABEL_LENGTH = 64;
 const PROJECT_PAGE_CALLBACK_PREFIX = "projects:page:";
 const PROJECT_SELECT_CALLBACK_PREFIX = "project:";
 
@@ -41,17 +40,6 @@ interface ProjectsPaginationRange {
   totalPages: number;
   startIndex: number;
   endIndex: number;
-}
-
-function formatProjectButtonLabel(label: string, isActive: boolean): string {
-  const prefix = isActive ? "✅ " : "";
-  const availableLength = MAX_INLINE_BUTTON_LABEL_LENGTH - prefix.length;
-
-  if (label.length <= availableLength) {
-    return `${prefix}${label}`;
-  }
-
-  return `${prefix}${label.slice(0, Math.max(0, availableLength - 3))}...`;
 }
 
 export function getProjectFolderName(worktree: string): string {
@@ -67,7 +55,12 @@ export function getProjectFolderName(worktree: string): string {
 
 export function buildProjectButtonLabel(index: number, worktree: string): string {
   const folderName = getProjectFolderName(worktree);
-  return `${index + 1}. ${folderName} [${worktree}]`;
+  return `${index + 1}. ${folderName}`;
+}
+
+function buildProjectDetailLine(index: number, worktree: string): string {
+  const folderName = getProjectFolderName(worktree);
+  return `${index + 1}. ${folderName} — ${worktree}`;
 }
 
 export function parseProjectPageCallback(data: string): number | null {
@@ -104,8 +97,11 @@ export function calculateProjectsPaginationRange(
 
 function buildProjectsMenuText(
   currentProjectName: string | null,
+  projects: ProjectInfo[],
   page: number,
   totalPages: number,
+  startIndex: number,
+  endIndex: number,
 ): string {
   const baseText = currentProjectName
     ? t("projects.select_with_current", {
@@ -113,14 +109,19 @@ function buildProjectsMenuText(
       })
     : t("projects.select");
 
-  if (totalPages <= 1) {
-    return baseText;
-  }
+  const pageIndicator =
+    totalPages > 1
+      ? t("projects.page_indicator", {
+          current: String(page + 1),
+          total: String(totalPages),
+        })
+      : null;
+  const details = projects
+    .slice(startIndex, endIndex)
+    .map((project, index) => buildProjectDetailLine(startIndex + index, project.worktree))
+    .join("\n");
 
-  return `${baseText}\n\n${t("projects.page_indicator", {
-    current: String(page + 1),
-    total: String(totalPages),
-  })}`;
+  return [baseText, pageIndicator, details].filter(Boolean).join("\n\n");
 }
 
 function buildProjectsKeyboard(
@@ -143,7 +144,7 @@ function buildProjectsKeyboard(
       currentProject &&
       (project.id === currentProject.id || project.worktree === currentProject.worktree);
     const label = buildProjectButtonLabel(startIndex + index, project.worktree);
-    const labelWithCheck = formatProjectButtonLabel(label, Boolean(isActive));
+    const labelWithCheck = isActive ? `✅ ${label}` : label;
     keyboard.text(labelWithCheck, `project:${project.id}`).row();
   });
 
@@ -173,15 +174,23 @@ function buildProjectsMenuView(
 ): { text: string; keyboard: InlineKeyboard } {
   const currentProject = getCurrentProject(scopeKey);
   const pageSize = config.bot.projectsListLimit;
-  const { page: normalizedPage, totalPages } = calculateProjectsPaginationRange(
-    projects.length,
-    page,
-    pageSize,
-  );
+  const {
+    page: normalizedPage,
+    totalPages,
+    startIndex,
+    endIndex,
+  } = calculateProjectsPaginationRange(projects.length, page, pageSize);
   const currentProjectName = currentProject?.name || currentProject?.worktree || null;
 
   return {
-    text: buildProjectsMenuText(currentProjectName, normalizedPage, totalPages),
+    text: buildProjectsMenuText(
+      currentProjectName,
+      projects,
+      normalizedPage,
+      totalPages,
+      startIndex,
+      endIndex,
+    ),
     keyboard: buildProjectsKeyboard(projects, normalizedPage, scopeKey),
   };
 }

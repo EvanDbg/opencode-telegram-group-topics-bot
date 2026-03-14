@@ -55,6 +55,25 @@ describe("bot/commands/projects handleProjectSelect", () => {
     expect(mocked.clearAllInteractionStateMock).not.toHaveBeenCalled();
   });
 
+  it("updates paginated project menu text in the message body", async () => {
+    const ctx = createCallbackContext("projects:page:1");
+    mocked.getProjectsMock.mockResolvedValue(
+      Array.from({ length: 11 }, (_, index) => ({
+        id: `project-${index + 1}`,
+        name: `Project ${index + 1}`,
+        worktree: `/tmp/project-${index + 1}`,
+      })),
+    );
+
+    const handled = await handleProjectSelect(ctx);
+
+    expect(handled).toBe(true);
+    expect(ctx.editMessageText).toHaveBeenCalledTimes(1);
+    const [text] = (ctx.editMessageText as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
+    expect(text).toContain(t("projects.page_indicator", { current: "2", total: "2" }));
+    expect(text).toContain("11. project-11 — /tmp/project-11");
+  });
+
   it("keeps project:* selection error behavior with state cleanup and chat error reply", async () => {
     const ctx = createCallbackContext("project:abc");
     mocked.getProjectsMock.mockResolvedValue([
