@@ -14,7 +14,26 @@ import {
   replyWithInlineMenu,
 } from "./inline-menu.js";
 import { t } from "../../i18n/index.js";
-import { SCOPE_CONTEXT, getScopeFromKey, getScopeKeyFromContext } from "../scope.js";
+import {
+  SCOPE_CONTEXT,
+  getScopeFromKey,
+  getScopeKeyFromContext,
+  getThreadSendOptions,
+} from "../scope.js";
+
+const MAX_INLINE_BUTTON_LABEL_LENGTH = 64;
+
+function formatModelButtonLabel(model: FavoriteModel, prefix: string, isActive: boolean): string {
+  const rawLabel = `${prefix} ${model.providerID}/${model.modelID}`;
+  const activePrefix = isActive ? "✅ " : "";
+  const availableLength = MAX_INLINE_BUTTON_LABEL_LENGTH - activePrefix.length;
+
+  if (rawLabel.length <= availableLength) {
+    return `${activePrefix}${rawLabel}`;
+  }
+
+  return `${activePrefix}${rawLabel.slice(0, Math.max(0, availableLength - 3))}...`;
+}
 
 function buildModelSelectionMenuText(modelLists: ModelSelectionLists): string {
   const lines = [t("model.menu.select"), t("model.menu.favorites_title")];
@@ -118,6 +137,7 @@ export async function handleModelSelect(ctx: Context): Promise<boolean> {
     await ctx.answerCallbackQuery({ text: t("model.changed_callback", { name: displayName }) });
     await ctx.reply(t("model.changed_message", { name: displayName }), {
       reply_markup: keyboard,
+      ...getThreadSendOptions(scope?.threadId ?? null),
     });
 
     // Delete the inline menu message
@@ -153,19 +173,21 @@ export async function buildModelSelectionMenu(
 
   const addButton = (model: FavoriteModel, prefix: string): void => {
     const isActive =
-      currentModel &&
+      currentModel !== undefined &&
       model.providerID === currentModel.providerID &&
       model.modelID === currentModel.modelID;
 
-    // Inline buttons use full model ID without truncation
-    const label = `${prefix} ${model.providerID}/${model.modelID}`;
-    const labelWithCheck = isActive ? `✅ ${label}` : label;
+    const labelWithCheck = formatModelButtonLabel(model, prefix, isActive);
 
     keyboard.text(labelWithCheck, `model:${model.providerID}:${model.modelID}`).row();
   };
 
-  favorites.forEach((model) => addButton(model, "⭐"));
-  recent.forEach((model) => addButton(model, "🕘"));
+  favorites.forEach((model) => {
+    addButton(model, "⭐");
+  });
+  recent.forEach((model) => {
+    addButton(model, "🕘");
+  });
 
   return keyboard;
 }
