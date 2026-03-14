@@ -1,6 +1,6 @@
 import { Context, InlineKeyboard } from "grammy";
 import { selectModel, fetchCurrentModel, getModelSelectionLists } from "../../model/manager.js";
-import { formatModelForDisplay } from "../../model/types.js";
+import { formatModelForButton, formatModelForDisplay } from "../../model/types.js";
 import type { FavoriteModel, ModelInfo, ModelSelectionLists } from "../../model/types.js";
 import { formatVariantForButton } from "../../variant/manager.js";
 import { logger } from "../../utils/logger.js";
@@ -16,20 +16,38 @@ import {
 import { t } from "../../i18n/index.js";
 import { SCOPE_CONTEXT, getScopeFromKey, getScopeKeyFromContext } from "../scope.js";
 
-function buildModelSelectionMenuText(modelLists: ModelSelectionLists): string {
+export function buildModelSelectionMenuText(modelLists: ModelSelectionLists): string {
   const lines = [t("model.menu.select"), t("model.menu.favorites_title")];
 
   if (modelLists.favorites.length === 0) {
     lines.push(t("model.menu.favorites_empty"));
+  } else {
+    lines.push(
+      ...modelLists.favorites.map(
+        (model, index) => `${index + 1}. ${model.providerID}/${model.modelID}`,
+      ),
+    );
   }
 
   lines.push(t("model.menu.recent_title"));
 
   if (modelLists.recent.length === 0) {
     lines.push(t("model.menu.recent_empty"));
+  } else {
+    lines.push(
+      ...modelLists.recent.map(
+        (model, index) =>
+          `${modelLists.favorites.length + index + 1}. ${model.providerID}/${model.modelID}`,
+      ),
+    );
   }
 
   return lines.join("\n");
+}
+
+function formatModelButtonLabel(model: FavoriteModel, prefix: string, isActive: boolean): string {
+  const label = `${prefix} ${formatModelForButton(model.providerID, model.modelID).replace("🤖 ", "")}`;
+  return isActive ? `✅ ${label}` : label;
 }
 
 /**
@@ -157,15 +175,17 @@ export async function buildModelSelectionMenu(
       model.providerID === currentModel.providerID &&
       model.modelID === currentModel.modelID;
 
-    // Inline buttons use full model ID without truncation
-    const label = `${prefix} ${model.providerID}/${model.modelID}`;
-    const labelWithCheck = isActive ? `✅ ${label}` : label;
+    const labelWithCheck = formatModelButtonLabel(model, prefix, Boolean(isActive));
 
     keyboard.text(labelWithCheck, `model:${model.providerID}:${model.modelID}`).row();
   };
 
-  favorites.forEach((model) => addButton(model, "⭐"));
-  recent.forEach((model) => addButton(model, "🕘"));
+  favorites.forEach((model) => {
+    addButton(model, "⭐");
+  });
+  recent.forEach((model) => {
+    addButton(model, "🕘");
+  });
 
   return keyboard;
 }
