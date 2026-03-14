@@ -212,8 +212,12 @@ describe("bot/commands/sessions", () => {
       limit: 11,
     });
 
+    const [text] = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
     const keyboardRows = getKeyboardButtons(ctx);
+    expect(text).toContain(t("sessions.select"));
+    expect(text).toContain("1. Session 1 —");
     expect(keyboardRows[0]?.[0]?.callback_data).toBe("session:session-1");
+    expect(keyboardRows[0]?.[0]?.text).toBe("1. Session 1");
     expect(keyboardRows[9]?.[0]?.callback_data).toBe("session:session-10");
     expect(keyboardRows[10]?.[0]?.callback_data).toBe("session:page:1");
     expect(keyboardRows[11]?.[0]?.callback_data).toBe("inline:cancel:session");
@@ -237,12 +241,18 @@ describe("bot/commands/sessions", () => {
 
     const [text, options] = (ctx.editMessageText as ReturnType<typeof vi.fn>).mock.calls[0] as [
       string,
-      { reply_markup: { inline_keyboard: Array<Array<{ callback_data?: string }>> } },
+      {
+        reply_markup: {
+          inline_keyboard: Array<Array<{ text?: string; callback_data?: string }>>;
+        };
+      },
     ];
 
-    expect(text).toBe(t("sessions.select_page", { page: 2 }));
+    expect(text).toContain(t("sessions.select_page", { page: 2 }));
+    expect(text).toContain("11. Session 11 —");
     const inlineRows = options.reply_markup.inline_keyboard;
     expect(inlineRows[0]?.[0]?.callback_data).toBe("session:session-11");
+    expect(inlineRows[0]?.[0]?.text).toBe("11. Session 11");
     expect(inlineRows[1]?.[0]?.callback_data).toBe("session:session-12");
     expect(inlineRows[2]?.[0]?.callback_data).toBe("session:page:0");
     expect(inlineRows[3]?.[0]?.callback_data).toBe("inline:cancel:session");

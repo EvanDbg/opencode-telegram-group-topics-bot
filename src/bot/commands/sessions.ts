@@ -106,6 +106,27 @@ function formatSessionsSelectText(page: number): string {
   return t("sessions.select_page", { page: page + 1 });
 }
 
+function formatSessionDetailLine(
+  index: number,
+  session: SessionListItem,
+  localeForDate: string,
+): string {
+  const date = new Date(session.time.created).toLocaleDateString(localeForDate);
+  return `${index + 1}. ${session.title} — ${date}`;
+}
+
+function buildSessionsMenuText(pageData: SessionPage, pageSize: number): string {
+  const localeForDate = getDateLocale();
+  const pageStartIndex = pageData.page * pageSize;
+  const details = pageData.sessions
+    .map((session, index) =>
+      formatSessionDetailLine(pageStartIndex + index, session, localeForDate),
+    )
+    .join("\n");
+
+  return [formatSessionsSelectText(pageData.page), details].filter(Boolean).join("\n\n");
+}
+
 function isGeneralForumScope(ctx: Context): boolean {
   const scope = getScopeFromContext(ctx);
   const isForumEnabled =
@@ -175,12 +196,10 @@ async function loadSessionPage(
 
 function buildSessionsKeyboard(pageData: SessionPage, pageSize: number): InlineKeyboard {
   const keyboard = new InlineKeyboard();
-  const localeForDate = getDateLocale();
   const pageStartIndex = pageData.page * pageSize;
 
   pageData.sessions.forEach((session, index) => {
-    const date = new Date(session.time.created).toLocaleDateString(localeForDate);
-    const label = `${pageStartIndex + index + 1}. ${session.title} (${date})`;
+    const label = `${pageStartIndex + index + 1}. ${session.title}`;
     keyboard.text(label, `${SESSION_CALLBACK_PREFIX}${session.id}`).row();
   });
 
@@ -238,7 +257,7 @@ export async function sessionsCommand(ctx: CommandContext<Context>) {
 
     await replyWithInlineMenu(ctx, {
       menuKind: "session",
-      text: formatSessionsSelectText(firstPage.page),
+      text: buildSessionsMenuText(firstPage, pageSize),
       keyboard,
     });
   } catch (error) {
@@ -285,7 +304,7 @@ export async function handleSessionSelect(ctx: Context): Promise<boolean> {
 
         const keyboard = buildSessionsKeyboard(pageData, pageSize);
         appendInlineMenuCancelButton(keyboard, "session");
-        await ctx.editMessageText(formatSessionsSelectText(pageData.page), {
+        await ctx.editMessageText(buildSessionsMenuText(pageData, pageSize), {
           reply_markup: keyboard,
         });
         await ctx.answerCallbackQuery();
