@@ -8,7 +8,7 @@ import { interactionManager } from "../../interaction/manager.js";
 import { logger } from "../../utils/logger.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { t } from "../../i18n/index.js";
-import { getScopeKeyFromContext, getThreadSendOptions } from "../scope.js";
+import { getScopeKeyFromContext, getThreadIdFromScopeKey, getThreadSendOptions } from "../scope.js";
 
 const MAX_BUTTON_LENGTH = 60;
 
@@ -249,8 +249,7 @@ async function showNextQuestion(ctx: Context, scopeKey: string): Promise<void> {
     return;
   }
 
-  const threadId =
-    typeof ctx.message?.message_thread_id === "number" ? ctx.message.message_thread_id : null;
+  const threadId = getThreadIdFromScopeKey(scopeKey);
   if (questionManager.hasNextQuestion(scopeKey)) {
     await showCurrentQuestion(ctx.api, ctx.chat.id, scopeKey, threadId);
   } else {
@@ -335,6 +334,7 @@ function formatQuestionText(
   question: {
     header: string;
     question: string;
+    options: Array<{ label: string; description: string }>;
     multiple?: boolean;
   },
   scopeKey: string,
@@ -346,7 +346,13 @@ function formatQuestionText(
   const headerTitle = [progressText, question.header].filter(Boolean).join(" ");
   const header = headerTitle ? `**${headerTitle}**\n\n` : "";
   const multiple = question.multiple ? t("question.multi_hint") : "";
-  return `${header}${question.question}${multiple}`;
+  const optionsText = question.options
+    .map((option) =>
+      option.description ? `• ${option.label} — ${option.description}` : `• ${option.label}`,
+    )
+    .join("\n");
+  const optionsSection = optionsText ? `\n\n${optionsText}` : "";
+  return `${header}${question.question}${multiple}${optionsSection}`;
 }
 
 function buildQuestionKeyboard(
@@ -375,9 +381,6 @@ function buildQuestionKeyboard(
 
 function formatButtonText(label: string, description: string, icon: string): string {
   let text = `${icon}${label}`;
-  if (description && icon === "") {
-    text += ` - ${description}`;
-  }
 
   if (text.length > MAX_BUTTON_LENGTH) {
     text = text.substring(0, MAX_BUTTON_LENGTH - 3) + "...";
