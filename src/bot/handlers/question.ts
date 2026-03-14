@@ -8,7 +8,7 @@ import { interactionManager } from "../../interaction/manager.js";
 import { logger } from "../../utils/logger.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { t } from "../../i18n/index.js";
-import { getScopeKeyFromContext, getThreadSendOptions } from "../scope.js";
+import { getScopeFromContext, getScopeKeyFromContext, getThreadSendOptions } from "../scope.js";
 
 const MAX_BUTTON_LENGTH = 60;
 
@@ -249,8 +249,7 @@ async function showNextQuestion(ctx: Context, scopeKey: string): Promise<void> {
     return;
   }
 
-  const threadId =
-    typeof ctx.message?.message_thread_id === "number" ? ctx.message.message_thread_id : null;
+  const threadId = getScopeFromContext(ctx)?.threadId ?? null;
   if (questionManager.hasNextQuestion(scopeKey)) {
     await showCurrentQuestion(ctx.api, ctx.chat.id, scopeKey, threadId);
   } else {

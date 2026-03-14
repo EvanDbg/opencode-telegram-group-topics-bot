@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Context } from "grammy";
 import { questionManager } from "../../../src/question/manager.js";
 import { interactionManager } from "../../../src/interaction/manager.js";
+import { setCurrentProject } from "../../../src/settings/manager.js";
+import { setCurrentSession } from "../../../src/session/manager.js";
 import {
   handleQuestionCallback,
   handleQuestionTextAnswer,
@@ -51,13 +53,19 @@ function createApi(sendMessageIds: number[]): Context["api"] {
   } as unknown as Context["api"];
 }
 
-function createCallbackContext(data: string, messageId: number, api: Context["api"]): Context {
+function createCallbackContext(
+  data: string,
+  messageId: number,
+  api: Context["api"],
+  threadId?: number,
+): Context {
   return {
     chat: { id: 123 },
     callbackQuery: {
       data,
       message: {
         message_id: messageId,
+        ...(typeof threadId === "number" ? { message_thread_id: threadId } : {}),
       },
     } as Context["callbackQuery"],
     api,
@@ -172,5 +180,54 @@ describe("bot/handlers/question", () => {
       show_alert: true,
     });
     expect(questionManager.isActive()).toBe(true);
+  });
+
+  it("keeps the callback topic thread when moving to the next question", async () => {
+    const api = createApi([500, 501]);
+    const scopeKey = "123:555";
+
+    questionManager.startQuestions([QUESTION_ONE, QUESTION_TWO], "req-6", scopeKey);
+    await showCurrentQuestion(api, 123, scopeKey, 555);
+
+    const callbackCtx = createCallbackContext("question:select:0:0", 500, api, 555);
+    const handled = await handleQuestionCallback(callbackCtx);
+
+    expect(handled).toBe(true);
+    expect(api.sendMessage).toHaveBeenNthCalledWith(
+      2,
+      123,
+      "**2/2 Q2**\n\nSecond question",
+      expect.objectContaining({
+        message_thread_id: 555,
+      }),
+    );
+  });
+
+  it("keeps the callback topic thread for poll completion summary", async () => {
+    const api = createApi([600, 601]);
+    const scopeKey = "123:555";
+
+    setCurrentProject({ id: "project-1", worktree: "/repo/test" }, scopeKey);
+    setCurrentSession(
+      { id: "session-1", title: "Topic session", directory: "/repo/test" },
+      scopeKey,
+    );
+
+    questionManager.startQuestions([QUESTION_ONE], "req-7", scopeKey);
+    await showCurrentQuestion(api, 123, scopeKey, 555);
+
+    const callbackCtx = createCallbackContext("question:select:0:0", 600, api, 555);
+    const handled = await handleQuestionCallback(callbackCtx);
+
+    expect(handled).toBe(true);
+    expect(api.sendMessage).toHaveBeenCalledTimes(2);
+    expect(api.sendMessage).toHaveBeenNthCalledWith(
+      2,
+      123,
+      expect.stringContaining(t("question.summary.title")),
+      expect.objectContaining({
+        message_thread_id: 555,
+      }),
+    );
   });
 });
