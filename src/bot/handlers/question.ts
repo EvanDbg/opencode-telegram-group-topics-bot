@@ -8,6 +8,10 @@ import { interactionManager } from "../../interaction/manager.js";
 import { logger } from "../../utils/logger.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { t } from "../../i18n/index.js";
+import {
+  isTelegramMarkdownParseError,
+  sendMessageWithMarkdownFallback,
+} from "../utils/send-with-markdown-fallback.js";
 import { getScopeKeyFromContext, getThreadSendOptions } from "../scope.js";
 
 const MAX_BUTTON_LENGTH = 60;
@@ -169,22 +173,56 @@ export async function handleQuestionCallback(ctx: Context): Promise<boolean> {
   return true;
 }
 
+function escapeMarkdown(text: string): string {
+  return text.replace(/([_*`\[])/g, "\\$1");
+}
+
+function formatQuestionOptions(options: Array<{ label: string; description: string }>): string {
+  return options
+    .map((option, index) => {
+      const label = escapeMarkdown(option.label);
+      const description = option.description ? escapeMarkdown(option.description) : "";
+      return description ? `${index + 1}. ${label} — ${description}` : `${index + 1}. ${label}`;
+    })
+    .join("\n");
+}
+
 async function updateQuestionMessage(ctx: Context, scopeKey: string): Promise<void> {
   const question = questionManager.getCurrentQuestion(scopeKey);
   if (!question) {
     return;
   }
 
-  await ctx
-    .editMessageText(formatQuestionText(question, scopeKey), {
-      reply_markup: buildQuestionKeyboard(
-        question,
-        questionManager.getSelectedOptions(questionManager.getCurrentIndex(scopeKey), scopeKey),
-        scopeKey,
-      ),
+  const text = formatQuestionText(question, scopeKey);
+  const replyMarkup = buildQuestionKeyboard(
+    question,
+    questionManager.getSelectedOptions(questionManager.getCurrentIndex(scopeKey), scopeKey),
+    scopeKey,
+  );
+
+  try {
+    await ctx.editMessageText(text, {
+      reply_markup: replyMarkup,
       parse_mode: "Markdown",
-    })
-    .catch(() => {});
+    });
+  } catch (error) {
+    const activeMessageId = questionManager.getActiveMessageId(scopeKey);
+    if (!(ctx.chat && activeMessageId !== null && isTelegramMarkdownParseError(error))) {
+      logger.warn("[QuestionHandler] Failed to update question message", error);
+      return;
+    }
+
+    try {
+      await ctx.api.editMessageText(ctx.chat.id, activeMessageId, text, {
+        reply_markup: replyMarkup,
+      });
+    } catch (fallbackError) {
+      logger.warn("[QuestionHandler] Failed to update question message without Markdown", {
+        error,
+        fallbackError,
+      });
+    }
+  }
 }
 
 export async function showCurrentQuestion(
@@ -199,14 +237,19 @@ export async function showCurrentQuestion(
     return;
   }
 
-  const message = await bot.sendMessage(chatId, formatQuestionText(question, scopeKey), {
-    reply_markup: buildQuestionKeyboard(
-      question,
-      questionManager.getSelectedOptions(questionManager.getCurrentIndex(scopeKey), scopeKey),
-      scopeKey,
-    ),
-    parse_mode: "Markdown",
-    ...getThreadSendOptions(threadId),
+  const message = await sendMessageWithMarkdownFallback({
+    api: bot,
+    chatId,
+    text: formatQuestionText(question, scopeKey),
+    options: {
+      reply_markup: buildQuestionKeyboard(
+        question,
+        questionManager.getSelectedOptions(questionManager.getCurrentIndex(scopeKey), scopeKey),
+        scopeKey,
+      ),
+      ...getThreadSendOptions(threadId),
+    },
+    parseMode: "Markdown",
   });
 
   questionManager.addMessageId(message.message_id, scopeKey);
@@ -335,6 +378,7 @@ function formatQuestionText(
   question: {
     header: string;
     question: string;
+    options: Array<{ label: string; description: string }>;
     multiple?: boolean;
   },
   scopeKey: string,
@@ -343,10 +387,13 @@ function formatQuestionText(
   const totalQuestions = questionManager.getTotalQuestions(scopeKey);
   const progressText = totalQuestions > 0 ? `${currentIndex + 1}/${totalQuestions}` : "";
 
-  const headerTitle = [progressText, question.header].filter(Boolean).join(" ");
+  const headerTitle = [progressText, escapeMarkdown(question.header)].filter(Boolean).join(" ");
   const header = headerTitle ? `**${headerTitle}**\n\n` : "";
   const multiple = question.multiple ? t("question.multi_hint") : "";
-  return `${header}${question.question}${multiple}`;
+  const body = escapeMarkdown(question.question);
+  const options = formatQuestionOptions(question.options);
+
+  return `${header}${body}${multiple}\n\n${options}`;
 }
 
 function buildQuestionKeyboard(
@@ -360,7 +407,7 @@ function buildQuestionKeyboard(
   question.options.forEach((option, index) => {
     const isSelected = selectedOptions.has(index);
     const icon = isSelected ? "✅ " : "";
-    const buttonText = formatButtonText(option.label, option.description, icon);
+    const buttonText = formatButtonText(index, option.label, icon);
     keyboard.text(buttonText, `question:select:${questionIndex}:${index}`).row();
   });
 
@@ -373,11 +420,8 @@ function buildQuestionKeyboard(
   return keyboard;
 }
 
-function formatButtonText(label: string, description: string, icon: string): string {
-  let text = `${icon}${label}`;
-  if (description && icon === "") {
-    text += ` - ${description}`;
-  }
+function formatButtonText(index: number, label: string, icon: string): string {
+  let text = `${icon}${index + 1}. ${label}`;
 
   if (text.length > MAX_BUTTON_LENGTH) {
     text = text.substring(0, MAX_BUTTON_LENGTH - 3) + "...";

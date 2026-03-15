@@ -38,6 +38,15 @@ const MULTIPLE_QUESTION: Question = {
   ],
 };
 
+const MARKDOWN_QUESTION: Question = {
+  header: "Q_[1]",
+  question: "Pick *one* [option]",
+  options: [
+    { label: "Alpha_beta", description: "use `code` carefully" },
+    { label: "Gamma", description: "" },
+  ],
+};
+
 function createApi(sendMessageIds: number[]): Context["api"] {
   let index = 0;
 
@@ -48,6 +57,7 @@ function createApi(sendMessageIds: number[]): Context["api"] {
       return { message_id: messageId };
     }),
     deleteMessage: vi.fn().mockResolvedValue(true),
+    editMessageText: vi.fn().mockResolvedValue(true),
   } as unknown as Context["api"];
 }
 
@@ -99,6 +109,31 @@ describe("bot/handlers/question", () => {
     expect(state?.metadata.requestID).toBe("req-1");
     expect(state?.metadata.messageId).toBe(100);
     expect(state?.metadata.questionIndex).toBe(0);
+
+    const sendMessage = api.sendMessage as ReturnType<typeof vi.fn>;
+    expect(sendMessage).toHaveBeenCalledWith(
+      123,
+      "**1/1 Q1**\n\nPick one\n\n1. Yes — accept\n2. No — decline",
+      expect.objectContaining({ parse_mode: "Markdown" }),
+    );
+
+    const replyMarkup = sendMessage.mock.calls[0]?.[2]?.reply_markup;
+    expect(replyMarkup?.inline_keyboard[0]?.[0]?.text).toBe("1. Yes");
+    expect(replyMarkup?.inline_keyboard[1]?.[0]?.text).toBe("2. No");
+  });
+
+  it("escapes markdown-sensitive content in the question body", async () => {
+    const api = createApi([150]);
+
+    questionManager.startQuestions([MARKDOWN_QUESTION], "req-md");
+    await showCurrentQuestion(api, 123, "global", null);
+
+    const sendMessage = api.sendMessage as ReturnType<typeof vi.fn>;
+    expect(sendMessage).toHaveBeenCalledWith(
+      123,
+      "**1/1 Q\\_\\[1\]**\n\nPick \\*one\\* \\[option]\n\n1. Alpha\\_beta — use \\`code\\` carefully\n2. Gamma",
+      expect.objectContaining({ parse_mode: "Markdown" }),
+    );
   });
 
   it("switches to mixed mode on custom callback and accepts custom text", async () => {
@@ -172,5 +207,27 @@ describe("bot/handlers/question", () => {
       show_alert: true,
     });
     expect(questionManager.isActive()).toBe(true);
+  });
+
+  it("updates multi-select message with short checked button labels", async () => {
+    const api = createApi([500]);
+
+    questionManager.startQuestions([MULTIPLE_QUESTION], "req-6");
+    await showCurrentQuestion(api, 123, "global", null);
+
+    const selectCtx = createCallbackContext("question:select:0:0", 500, api);
+    await handleQuestionCallback(selectCtx);
+
+    expect(selectCtx.editMessageText).toHaveBeenCalledWith(
+      "**1/1 Q multi**\n\nPick multiple\n*You can select multiple options*\n\n1. One — 1\n2. Two — 2",
+      expect.objectContaining({
+        parse_mode: "Markdown",
+      }),
+    );
+
+    const replyMarkup = (selectCtx.editMessageText as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]
+      ?.reply_markup;
+    expect(replyMarkup?.inline_keyboard[0]?.[0]?.text).toBe("✅ 1. One");
+    expect(replyMarkup?.inline_keyboard[1]?.[0]?.text).toBe("2. Two");
   });
 });
