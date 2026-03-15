@@ -22,7 +22,7 @@ const mocked = vi.hoisted(() => ({
   pinnedGetContextLimitMock: vi.fn(),
   pinnedRefreshContextLimitMock: vi.fn(),
   pinnedGetContextInfoMock: vi.fn(),
-  sendWithFallbackMock: vi.fn(),
+  sendBotTextMock: vi.fn(),
 }));
 
 vi.mock("../../../src/opencode/client.js", () => ({
@@ -82,8 +82,8 @@ vi.mock("../../../src/pinned/manager.js", () => ({
   },
 }));
 
-vi.mock("../../../src/bot/utils/send-with-markdown-fallback.js", () => ({
-  sendMessageWithMarkdownFallback: mocked.sendWithFallbackMock,
+vi.mock("../../../src/bot/utils/telegram-text.js", () => ({
+  sendBotText: mocked.sendBotTextMock,
 }));
 
 describe("bot/commands/status", () => {
@@ -107,7 +107,7 @@ describe("bot/commands/status", () => {
     mocked.pinnedGetContextLimitMock.mockReset();
     mocked.pinnedRefreshContextLimitMock.mockReset();
     mocked.pinnedGetContextInfoMock.mockReset();
-    mocked.sendWithFallbackMock.mockReset();
+    mocked.sendBotTextMock.mockReset();
 
     mocked.healthMock.mockResolvedValue({ data: { healthy: true, version: "1.0.0" }, error: null });
     mocked.projectListMock.mockResolvedValue({ data: [{ id: "p1" }], error: null });
@@ -125,7 +125,7 @@ describe("bot/commands/status", () => {
     mocked.pinnedGetContextLimitMock.mockReturnValue(200000);
     mocked.pinnedRefreshContextLimitMock.mockResolvedValue(undefined);
     mocked.pinnedGetContextInfoMock.mockReturnValue(null);
-    mocked.sendWithFallbackMock.mockResolvedValue(undefined);
+    mocked.sendBotTextMock.mockResolvedValue(undefined);
   });
 
   it("routes group-thread status response to message thread", async () => {
@@ -138,8 +138,8 @@ describe("bot/commands/status", () => {
 
     await statusCommand(ctx as never);
 
-    expect(mocked.sendWithFallbackMock).toHaveBeenCalledTimes(1);
-    const call = mocked.sendWithFallbackMock.mock.calls[0]?.[0] as {
+    expect(mocked.sendBotTextMock).toHaveBeenCalledTimes(1);
+    const call = mocked.sendBotTextMock.mock.calls[0]?.[0] as {
       options: { message_thread_id?: number };
     };
     expect(call.options).toMatchObject({ message_thread_id: 55 });
@@ -161,6 +161,6 @@ describe("bot/commands/status", () => {
     expect(message).toContain("DM");
     expect(message).toContain("Projects");
     expect(message).toContain("Sessions");
-    expect(mocked.sendWithFallbackMock).not.toHaveBeenCalled();
+    expect(mocked.sendBotTextMock).not.toHaveBeenCalled();
   });
 });

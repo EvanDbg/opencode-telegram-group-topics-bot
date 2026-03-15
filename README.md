@@ -16,7 +16,7 @@ You can run many session topics in parallel inside one group, and many groups in
 
 Platforms: macOS, Windows, Linux
 
-Languages: English (`en`), Deutsch (`de`), Espanol (`es`), Russkiy (`ru`), Jian ti Zhong wen (`zh`)
+Languages: English (`en`), Deutsch (`de`), Espanol (`es`), Francais (`fr`), Russkiy (`ru`), Jian ti Zhong wen (`zh`)
 
 Fork sync notes: [`FORK_SYNC.md`](./FORK_SYNC.md)
 
@@ -184,7 +184,7 @@ Installed-mode config paths:
 | `OPENCODE_SERVER_PASSWORD`      | Server auth password                                                                 |    No    | -                        |
 | `OPENCODE_MODEL_PROVIDER`       | Default model provider                                                               |   Yes    | `opencode`               |
 | `OPENCODE_MODEL_ID`             | Default model ID                                                                     |   Yes    | `big-pickle`             |
-| `BOT_LOCALE`                    | Bot UI language (`en`, `de`, `es`, `ru`, `zh`)                                       |    No    | `en`                     |
+| `BOT_LOCALE`                    | Bot UI language (`en`, `de`, `es`, `fr`, `ru`, `zh`)                                 |    No    | `en`                     |
 | `SESSIONS_LIST_LIMIT`           | Sessions per page in `/sessions`                                                     |    No    | `10`                     |
 | `PROJECTS_LIST_LIMIT`           | Projects per page in `/projects`                                                     |    No    | `10`                     |
 | `SERVICE_MESSAGES_INTERVAL_SEC` | Service messages interval; keep `>=2` to avoid Telegram rate limits, `0` = immediate |    No    | `5`                      |

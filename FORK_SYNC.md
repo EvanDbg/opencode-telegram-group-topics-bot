@@ -6,7 +6,7 @@ This repository is a product fork of the original single-chat project at `grinev
 
 - Upstream repo: `https://github.com/grinev/opencode-telegram-bot`
 - Upstream branch: `main`
-- Last reviewed upstream head: `efd8f55` (`chore(release): v0.11.2`, 2026-03-10)
+- Last reviewed upstream head: `a726b71` (`chore(release): v0.11.4`, 2026-03-15)
 - Original fork point for this threaded fork: `21da71b` (`chore(release): v0.11.0`)
 
 ## Fork Rules
@@ -25,6 +25,8 @@ This repository is a product fork of the original single-chat project at `grinev
 - `dce630c` partial port: `/start` is now always allowed during active interactions and performs scope-aware recovery
 - `c192aee` partial port: model favorites/recent lists are filtered against the current provider catalog and invalid stored scoped models are reconciled
 - `19e0644` reviewed during sync; localized text remains compatible with this fork
+- `eb56b66` adapted port: interactive/status/setup messages now default to raw Telegram text while assistant completions still fall back safely from MarkdownV2 to plain text
+- `c72e7cb` ported: French locale support added and registered in locale validation/docs
 
 ## Upstream Changes Intentionally Adapted
 
@@ -40,8 +42,10 @@ This repository is a product fork of the original single-chat project at `grinev
 ## Upstream Changes Intentionally Skipped
 
 - Release-only bumps (`v0.11.1`, `v0.11.2`)
+- Release-only bumps (`v0.11.3`, `v0.11.4`)
 - Upstream docs that frame forum topics / parallel thread workflows as out of scope
 - Repo template churn that does not affect runtime behavior
+- `d392778` upstream concept docs link back to this fork; not needed in fork docs
 
 ## Sync Workflow
 

@@ -182,7 +182,6 @@ async function updateQuestionMessage(ctx: Context, scopeKey: string): Promise<vo
         questionManager.getSelectedOptions(questionManager.getCurrentIndex(scopeKey), scopeKey),
         scopeKey,
       ),
-      parse_mode: "Markdown",
     })
     .catch(() => {});
 }
@@ -205,7 +204,6 @@ export async function showCurrentQuestion(
       questionManager.getSelectedOptions(questionManager.getCurrentIndex(scopeKey), scopeKey),
       scopeKey,
     ),
-    parse_mode: "Markdown",
     ...getThreadSendOptions(threadId),
   });
 
@@ -344,7 +342,7 @@ function formatQuestionText(
   const progressText = totalQuestions > 0 ? `${currentIndex + 1}/${totalQuestions}` : "";
 
   const headerTitle = [progressText, question.header].filter(Boolean).join(" ");
-  const header = headerTitle ? `**${headerTitle}**\n\n` : "";
+  const header = headerTitle ? `${headerTitle}\n\n` : "";
   const multiple = question.multiple ? t("question.multi_hint") : "";
   return `${header}${question.question}${multiple}`;
 }

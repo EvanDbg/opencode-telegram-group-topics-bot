@@ -57,7 +57,7 @@ import { processUserPrompt } from "./handlers/prompt.js";
 import { handleVoiceMessage } from "./handlers/voice.js";
 import { handleDocumentMessage } from "./handlers/document.js";
 import { downloadTelegramFile, toDataUri } from "./utils/file-download.js";
-import { sendMessageWithMarkdownFallback } from "./utils/send-with-markdown-fallback.js";
+import { sendBotText } from "./utils/telegram-text.js";
 import { extractCommandName } from "./utils/commands.js";
 import {
   isOperationAbortedSessionError,
@@ -361,6 +361,7 @@ async function ensureEventSubscription(directory: string): Promise<void> {
       try {
         const parts = formatSummary(messageText);
         const assistantParseMode = getAssistantParseMode();
+        const assistantMessageFormat = assistantParseMode === "MarkdownV2" ? "markdown_v2" : "raw";
 
         logger.debug(
           `[Bot] Sending completed message to Telegram (chatId=${target.chatId}, parts=${parts.length})`,
@@ -374,7 +375,7 @@ async function ensureEventSubscription(directory: string): Promise<void> {
               : undefined;
           const options = keyboard ? { reply_markup: keyboard } : undefined;
 
-          await sendMessageWithMarkdownFallback({
+          await sendBotText({
             api: botInstance.api,
             chatId: target.chatId,
             text: parts[i],
@@ -382,7 +383,7 @@ async function ensureEventSubscription(directory: string): Promise<void> {
               ...(options || {}),
               ...getThreadSendOptions(target.threadId),
             },
-            parseMode: assistantParseMode,
+            format: assistantMessageFormat,
           });
         }
       } catch (err) {
@@ -647,7 +648,6 @@ async function ensureEventSubscription(directory: string): Promise<void> {
         .catch((err) => {
           logger.error("[Bot] Failed to send session.error message:", err);
         });
-      });
     });
   });
 

@@ -59,7 +59,10 @@ vi.mock("../../../src/utils/safe-background-task.js", () => ({
   },
 }));
 
-function createPermissionRequest(id: string): PermissionRequest {
+function createPermissionRequest(
+  id: string,
+  overrides: Partial<PermissionRequest> = {},
+): PermissionRequest {
   return {
     id,
     sessionID: "session-1",
@@ -67,6 +70,7 @@ function createPermissionRequest(id: string): PermissionRequest {
     patterns: ["npm test"],
     metadata: {},
     always: [],
+    ...overrides,
   };
 }
 
@@ -360,29 +364,26 @@ describe("bot/handlers/permission", () => {
     expect(interactionManager.getSnapshot()).toBeNull();
   });
 
-  it("retries permission message without markdown when Telegram rejects entities", async () => {
+  it("sends permission text in raw mode for underscore-based permission names", async () => {
     const botApi = createBotApi(800);
+
+    await showPermissionRequest(
+      botApi,
+      777,
+      createPermissionRequest("perm-external", {
+        permission: "external_directory",
+        patterns: ["D:/data/my_project"],
+      }),
+      "global",
+      null,
+    );
+
     const sendMessageMock = botApi.sendMessage as unknown as ReturnType<typeof vi.fn>;
+    const [, text, options] = sendMessageMock.mock.calls[0];
 
-    sendMessageMock
-      .mockRejectedValueOnce(
-        new Error(
-          "400: Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 35",
-        ),
-      )
-      .mockResolvedValueOnce({ message_id: 801 });
-
-    const request = createPermissionRequest("perm-markdown-fallback");
-    request.patterns = ["npm run lint\nnpm test"];
-
-    await showPermissionRequest(botApi, 777, request, "global", null);
-
-    expect(sendMessageMock).toHaveBeenCalledTimes(2);
-    expect(sendMessageMock.mock.calls[0]?.[2]).toMatchObject({ parse_mode: "Markdown" });
-    expect(sendMessageMock.mock.calls[1]?.[2]).not.toHaveProperty("parse_mode");
-
-    expect(permissionManager.getRequestID(801)).toBe("perm-markdown-fallback");
-    expect(permissionManager.getPendingCount()).toBe(1);
-    expect(interactionManager.getSnapshot()?.kind).toBe("permission");
+    expect(text).toContain(t("permission.name.external_directory"));
+    expect(text).toContain("• D:/data/my_project");
+    expect(options).not.toHaveProperty("parse_mode");
+    expect(permissionManager.getRequestID(800)).toBe("perm-external");
   });
 });

@@ -10,7 +10,7 @@ import { logger } from "../../utils/logger.js";
 import { PermissionRequest, PermissionReply } from "../../permission/types.js";
 import type { I18nKey } from "../../i18n/en.js";
 import { t } from "../../i18n/index.js";
-import { sendMessageWithMarkdownFallback } from "../utils/send-with-markdown-fallback.js";
+import { sendBotText } from "../utils/telegram-text.js";
 import { getScopeFromContext, getScopeKeyFromContext, getThreadSendOptions } from "../scope.js";
 
 const PERMISSION_CALLBACK = {
@@ -45,6 +45,7 @@ const PERMISSION_NAME_KEYS: Record<string, I18nKey> = {
   list: "permission.name.list",
   task: "permission.name.task",
   lsp: "permission.name.lsp",
+  external_directory: "permission.name.external_directory",
 };
 
 // Permission type emojis
@@ -60,6 +61,7 @@ const PERMISSION_EMOJIS: Record<string, string> = {
   list: "📂",
   task: "⚙️",
   lsp: "🔧",
+  external_directory: "📁",
 };
 
 function getCallbackMessageId(ctx: Context): number | null {
@@ -312,7 +314,7 @@ export async function showPermissionRequest(
   const keyboard = buildPermissionKeyboard(request.id);
 
   try {
-    const message = await sendMessageWithMarkdownFallback({
+    const message = await sendBotText({
       api: bot,
       chatId,
       text,
@@ -320,7 +322,6 @@ export async function showPermissionRequest(
         reply_markup: keyboard,
         ...getThreadSendOptions(threadId),
       },
-      parseMode: "Markdown",
     });
 
     logger.debug(`[PermissionHandler] Message sent, messageId=${message.message_id}`);
@@ -351,9 +352,7 @@ function formatPermissionText(request: PermissionRequest): string {
   // Show patterns (commands/files)
   if (request.patterns.length > 0) {
     request.patterns.forEach((pattern) => {
-      // Escape backticks for Markdown code
-      const escapedPattern = pattern.replace(/`/g, "\\`");
-      text += `\`${escapedPattern}\`\n`;
+      text += `• ${pattern}\n`;
     });
   }
 
