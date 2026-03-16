@@ -252,6 +252,14 @@ export function createNewCommand(deps: NewCommandDeps) {
       await ctx.reply(generalReplyText, getThreadSendOptions(scope?.threadId ?? null));
 
       if (initialPrompt.length > 0) {
+        await ctx.api.sendMessage(
+          ctx.chat!.id,
+          `${t("sessions.preview.you")}\n${initialPrompt}`,
+          {
+            ...getThreadSendOptions(topicThreadId),
+          },
+        );
+
         const promptModel = getStoredModel(topicScopeKey);
         const promptAgent = getStoredAgent(topicScopeKey);
         const promptOptions: {

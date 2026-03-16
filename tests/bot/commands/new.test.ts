@@ -290,6 +290,35 @@ describe("bot/commands/new", () => {
       ([options]) => options.taskName === "new.session.promptAsync",
     )?.[0];
     expect(promptTask).toBeDefined();
+
+    expect((ctx.api.sendMessage as ReturnType<typeof vi.fn>).mock.calls).toContainEqual([
+      -100123,
+      "sessions.preview.you\nAudit branches",
+      { message_thread_id: 777 },
+    ]);
+  });
+
+  it("echoes the inline /new prompt into the created topic before background submission", async () => {
+    const ensureEventSubscription = vi.fn().mockResolvedValue(undefined);
+    const command = createNewCommand({ ensureEventSubscription });
+    const ctx = createContext("/new Review pending PRs");
+
+    await command(ctx as never);
+
+    const sendMessageCalls = (ctx.api.sendMessage as ReturnType<typeof vi.fn>).mock.calls;
+    expect(sendMessageCalls[0]).toEqual([
+      -100123,
+      "new.topic_created:Open PRs and unpushed branch audit",
+      { message_thread_id: 777, reply_markup: { keyboard: [] } },
+    ]);
+    expect(sendMessageCalls[1]).toEqual([
+      -100123,
+      "sessions.preview.you\nReview pending PRs",
+      { message_thread_id: 777 },
+    ]);
+    expect((ctx.api.sendMessage as ReturnType<typeof vi.fn>).mock.invocationCallOrder[1]).toBeLessThan(
+      mocked.safeBackgroundTaskMock.mock.invocationCallOrder[0],
+    );
   });
 
   it("surfaces background prompt API errors in the created topic", async () => {

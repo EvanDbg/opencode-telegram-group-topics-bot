@@ -145,6 +145,10 @@ function rememberScopeTarget(ctx: Context): void {
   telegramRateLimiter.setActiveScopeKey(scope.key);
 }
 
+function bindBotInstance(bot: Bot<Context>): void {
+  botInstance = bot;
+}
+
 function getTargetBySessionId(
   sessionId: string,
 ): { chatId: number; threadId: number | null; scopeKey: string } | null {
@@ -774,6 +778,7 @@ export function createBot(): Bot<Context> {
   }
 
   const bot = new Bot(config.telegram.token, botOptions);
+  bindBotInstance(bot);
 
   bot.api.config.use((prev, method, payload, signal) => {
     return telegramRateLimiter.enqueue(method, payload, () => prev(method, payload, signal));
@@ -804,6 +809,7 @@ export function createBot(): Bot<Context> {
   });
 
   bot.use((ctx, next) => {
+    bindBotInstance(bot);
     rememberScopeTarget(ctx);
 
     const hasCallbackQuery = !!ctx.callbackQuery;
