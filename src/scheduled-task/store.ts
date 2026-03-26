@@ -142,3 +142,13 @@ export async function getScheduledTaskTopicByChatAndProject(
   );
   return binding ? cloneScheduledTaskTopicBinding(binding) : null;
 }
+
+export async function getScheduledTaskTopicByChatAndThread(
+  chatId: number,
+  threadId: number,
+): Promise<ScheduledTaskTopicBinding | null> {
+  const binding = listScheduledTaskTopics().find(
+    (topic) => topic.chatId === chatId && topic.threadId === threadId,
+  );
+  return binding ? cloneScheduledTaskTopicBinding(binding) : null;
+}

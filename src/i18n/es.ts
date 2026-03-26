@@ -70,6 +70,8 @@ export const es: I18nDictionary = {
   "bot.session_created": "✅ Sesión creada: {title}",
   "bot.session_busy":
     "⏳ Tu solicitud anterior todavía está en ejecución, por eso esta nueva no se inició.\n\nPor qué pasó: OpenCode acepta solo una ejecución activa por sesión.\nQué hacer: espera la respuesta actual, o usa /abort si parece bloqueada, y luego envía el mensaje de nuevo.",
+  "bot.session_queued":
+    "📝 Tu mensaje quedó en cola para esta sesión.\n\nPosición en la cola: {position}\nQué pasará ahora: se iniciará automáticamente cuando termine la ejecución actual.",
   "bot.session_reset_project_mismatch":
     "⚠️ La sesión activa no coincide con el proyecto seleccionado, así que se reinició. Usa /sessions para elegir una o /new para crear una nueva.",
   "bot.prompt_send_error":
@@ -187,11 +189,13 @@ export const es: I18nDictionary = {
 
   "task.project_not_selected":
     "🏗 No hay un proyecto seleccionado.\n\nPrimero selecciona un proyecto con /projects.",
+  "task.output_topic_blocked":
+    "⚠️ Los prompts están desactivados en Scheduled Task Output. Usa 🎛️ Session Control para gestionar proyectos, sesiones y tareas programadas.",
   "task.schedule_prompt":
     "Envía el horario para esta tarea. Ejemplos: `cada día laboral a las 09:00` o `mañana a las 18:30`.",
   "task.schedule_parsing": "⏳ Todavía estoy interpretando el horario. Espera la vista previa.",
   "task.schedule_preview":
-    "Horario interpretado.\n\nResumen: {summary}\nPróxima ejecución: {nextRunAt}\n\nAhora envía el prompt que debe ejecutarse con ese horario.",
+    "Horario interpretado.\n\nResumen: {summary}\nPróxima ejecución: {nextRunAt}",
   "task.prompt_prompt": "Envía el prompt para esta tarea programada.",
   "task.schedule_error":
     "⚠️ No pude interpretar ese horario: {message}\n\nEnvía una descripción más clara.",

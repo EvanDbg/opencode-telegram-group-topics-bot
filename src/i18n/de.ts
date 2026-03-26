@@ -70,6 +70,8 @@ export const de: I18nDictionary = {
   "bot.session_created": "✅ Sitzung erstellt: {title}",
   "bot.session_busy":
     "⏳ Deine letzte Anfrage wird noch verarbeitet, deshalb wurde diese neue nicht gestartet.\n\nWarum das passiert ist: OpenCode erlaubt pro Sitzung nur einen aktiven Lauf gleichzeitig.\nWas du tun kannst: warte auf die aktuelle Antwort oder nutze /abort, wenn es festhängt, und sende die Nachricht dann erneut.",
+  "bot.session_queued":
+    "📝 Deine Nachricht wurde für diese Sitzung in die Warteschlange gestellt.\n\nPosition in der Warteschlange: {position}\nWas als Nächstes passiert: Sie startet automatisch, sobald der aktuelle Lauf fertig ist.",
   "bot.session_reset_project_mismatch":
     "⚠️ Die aktive Sitzung passt nicht zum ausgewählten Projekt und wurde daher zurückgesetzt. Nutze /sessions zur Auswahl oder /new, um eine neue Sitzung zu erstellen.",
   "bot.prompt_send_error":
@@ -188,11 +190,13 @@ export const de: I18nDictionary = {
 
   "task.project_not_selected":
     "🏗 Projekt ist nicht ausgewählt.\n\nWähle zuerst ein Projekt mit /projects.",
+  "task.output_topic_blocked":
+    "⚠️ Prompts sind in Scheduled Task Output deaktiviert. Nutze 🎛️ Session Control, um Projekte, Sessions und geplante Aufgaben zu verwalten.",
   "task.schedule_prompt":
     "Sende den Zeitplan für diese Aufgabe. Beispiele: `jeden Werktag um 09:00` oder `morgen um 18:30`.",
   "task.schedule_parsing": "⏳ Der Zeitplan wird noch analysiert. Warte auf die Vorschau.",
   "task.schedule_preview":
-    "Zeitplan erkannt.\n\nZusammenfassung: {summary}\nNächster Lauf: {nextRunAt}\n\nSende jetzt den Prompt für diese geplante Aufgabe.",
+    "Zeitplan erkannt.\n\nZusammenfassung: {summary}\nNächster Lauf: {nextRunAt}",
   "task.prompt_prompt": "Sende den Prompt für diese geplante Aufgabe.",
   "task.schedule_error":
     "⚠️ Dieser Zeitplan konnte nicht verstanden werden: {message}\n\nSende eine klarere Beschreibung.",

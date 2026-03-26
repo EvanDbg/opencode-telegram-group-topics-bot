@@ -69,8 +69,37 @@ describe("bot/commands/last", () => {
     );
   });
 
+  it("prefers the most recent assistant reply over a newer user-only turn", async () => {
+    mocked.sessionMessagesMock.mockResolvedValueOnce({
+      data: [
+        {
+          info: { role: "user", time: { created: 3 } },
+          parts: [{ type: "text", text: "My latest message" }],
+        },
+        {
+          info: { role: "assistant", time: { created: 2 } },
+          parts: [{ type: "text", text: "Latest completed agent reply" }],
+        },
+      ],
+      error: null,
+    });
+    const replyMock = vi.fn().mockResolvedValue(undefined);
+    const ctx = {
+      chat: { id: -100, type: "supergroup" },
+      message: { text: "/last", message_thread_id: 22 },
+      reply: replyMock,
+    } as unknown as Context;
+
+    await lastCommand(ctx as never);
+
+    expect(replyMock).toHaveBeenCalledWith(
+      `${t("last.title")}\n\n${t("sessions.preview.agent")} Latest completed agent reply`,
+      { message_thread_id: 22 },
+    );
+  });
+
   it("returns an empty state when there are no visible messages", async () => {
-    mocked.sessionMessagesMock.mockResolvedValueOnce({ data: [], error: null });
+    mocked.sessionMessagesMock.mockResolvedValue({ data: [], error: null });
     const replyMock = vi.fn().mockResolvedValue(undefined);
     const ctx = {
       chat: { id: 42, type: "private" },

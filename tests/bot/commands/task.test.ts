@@ -3,6 +3,7 @@ import type { Context } from "grammy";
 import { handleTaskTextAnswer, taskCommand } from "../../../src/bot/commands/task.js";
 import { taskCreationManager } from "../../../src/scheduled-task/creation-manager.js";
 import { interactionManager } from "../../../src/interaction/manager.js";
+import { t } from "../../../src/i18n/index.js";
 
 const mocked = vi.hoisted(() => ({
   getCurrentProjectMock: vi.fn(),
@@ -116,7 +117,7 @@ describe("bot/commands/task", () => {
 
     expect((promptCtx.api.createForumTopic as ReturnType<typeof vi.fn>).mock.calls[0]).toEqual([
       -100123,
-      "Scheduled - App",
+      "⏰ Scheduled Task Output",
       { icon_color: 7322096 },
     ]);
     expect(mocked.upsertScheduledTaskTopicMock).toHaveBeenCalledWith(
@@ -151,7 +152,7 @@ describe("bot/commands/task", () => {
       projectId: "project-1",
       projectWorktree: "/repo/app",
       threadId: 333,
-      topicName: "Scheduled - App",
+      topicName: "⏰ Scheduled Task Output",
       createdAt: "2026-03-25T00:00:00.000Z",
       updatedAt: "2026-03-25T00:00:00.000Z",
     });
@@ -170,5 +171,41 @@ describe("bot/commands/task", () => {
         delivery: { chatId: -100123, threadId: 333 },
       }),
     );
+  });
+
+  it("sends a concise schedule preview before the separate prompt request", async () => {
+    mocked.parseTaskScheduleMock.mockResolvedValue({
+      kind: "once",
+      runAt: "2026-03-26T18:30:00.000Z",
+      timezone: "UTC",
+      summary: "in one minute",
+      nextRunAt: "2026-03-26T18:30:00.000Z",
+    });
+    mocked.getScheduledTaskTopicByChatAndProjectMock.mockResolvedValue({
+      chatId: -100123,
+      projectId: "project-1",
+      projectWorktree: "/repo/app",
+      threadId: 333,
+      topicName: "⏰ Scheduled Task Output",
+      createdAt: "2026-03-25T00:00:00.000Z",
+      updatedAt: "2026-03-25T00:00:00.000Z",
+    });
+
+    const commandCtx = createContext("/task", 77);
+    await taskCommand(commandCtx as never);
+
+    const scheduleCtx = createContext("in one minute", 77);
+    await handleTaskTextAnswer(scheduleCtx);
+
+    const replyMock = scheduleCtx.reply as ReturnType<typeof vi.fn>;
+    expect(replyMock).toHaveBeenCalledTimes(2);
+    expect(replyMock).toHaveBeenNthCalledWith(
+      1,
+      t("task.schedule_preview", {
+        summary: "in one minute",
+        nextRunAt: "2026-03-26T18:30:00.000Z",
+      }),
+    );
+    expect(replyMock).toHaveBeenNthCalledWith(2, t("task.prompt_prompt"));
   });
 });

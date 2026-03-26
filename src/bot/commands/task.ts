@@ -30,14 +30,9 @@ function isForumGroupContext(ctx: Context): boolean {
   );
 }
 
-function getProjectLabel(project: { name?: string; worktree: string }): string {
-  const normalizedWorktree = project.worktree.replace(/[\\/]+$/g, "");
-  const worktreeName = normalizedWorktree.split(/[\\/]/).filter(Boolean).at(-1) ?? project.worktree;
-  return project.name?.trim() || worktreeName;
-}
-
 function buildScheduledTopicName(project: { name?: string; worktree: string }): string {
-  return `Scheduled - ${getProjectLabel(project)}`.slice(0, 128);
+  void project;
+  return "⏰ Scheduled Task Output";
 }
 
 async function resolveScheduledTaskDeliveryTarget(

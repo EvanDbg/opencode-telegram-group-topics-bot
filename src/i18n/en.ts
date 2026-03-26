@@ -69,6 +69,8 @@ export const en = {
   "bot.session_created": "✅ Session created: {title}",
   "bot.session_busy":
     "⏳ Your last request is still running, so this new one was not started.\n\nWhy this happened: OpenCode accepts one active run per session.\nWhat to do: wait for the current reply, or use /abort if it seems stuck, then send your message again.",
+  "bot.session_queued":
+    "📝 Your message was queued for this session.\n\nQueue position: {position}\nWhat happens next: it will start automatically after the current run finishes.",
   "bot.session_reset_project_mismatch":
     "⚠️ Active session does not match the selected project, so it was reset. Use /sessions to pick one or /new to create a new session.",
   "bot.prompt_send_error":
@@ -198,12 +200,13 @@ export const en = {
 
   "task.project_not_selected":
     "🏗 Project is not selected.\n\nFirst select a project with /projects.",
+  "task.output_topic_blocked":
+    "⚠️ Prompts are disabled in Scheduled Task Output. Use 🎛️ Session Control to manage projects, sessions, and scheduled tasks.",
   "task.schedule_prompt":
     "Send the schedule for this task. Examples: `every weekday at 09:00` or `tomorrow at 18:30`.",
   "task.schedule_parsing":
     "⏳ Still parsing the schedule. Wait for the preview before sending more text.",
-  "task.schedule_preview":
-    "Schedule parsed.\n\nSummary: {summary}\nNext run: {nextRunAt}\n\nNow send the prompt that should run on that schedule.",
+  "task.schedule_preview": "Schedule parsed.\n\nSummary: {summary}\nNext run: {nextRunAt}",
   "task.prompt_prompt": "Send the prompt for this scheduled task.",
   "task.schedule_error":
     "⚠️ I could not parse that schedule: {message}\n\nSend a clearer schedule description.",

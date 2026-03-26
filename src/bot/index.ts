@@ -56,7 +56,7 @@ import { logger } from "../utils/logger.js";
 import { safeBackgroundTask } from "../utils/safe-background-task.js";
 import { pinnedMessageManager } from "../pinned/manager.js";
 import { t } from "../i18n/index.js";
-import { processUserPrompt } from "./handlers/prompt.js";
+import { dispatchNextQueuedPrompt, processUserPrompt } from "./handlers/prompt.js";
 import { handleVoiceMessage } from "./handlers/voice.js";
 import { handleDocumentMessage } from "./handlers/document.js";
 import { downloadTelegramFile, toDataUri } from "./utils/file-download.js";
@@ -746,6 +746,7 @@ async function ensureEventSubscription(directory: string): Promise<void> {
     enqueueSessionDelivery(sessionId, async () => {
       await toolMessageBatcher.flushSession(sessionId, "session_idle");
       await toolCallStreamer.clearSession(sessionId, "session_idle");
+      await dispatchNextQueuedPrompt(sessionId);
     });
   });
 

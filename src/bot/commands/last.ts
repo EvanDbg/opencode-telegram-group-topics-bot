@@ -1,7 +1,11 @@
 import { CommandContext, Context } from "grammy";
 import { getCurrentProject } from "../../settings/manager.js";
 import { getCurrentSession } from "../../session/manager.js";
-import { loadLastVisibleTurn, truncateText } from "../../session/history.js";
+import {
+  loadLastAssistantMessage,
+  loadLastVisibleTurn,
+  truncateText,
+} from "../../session/history.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
 import { getScopeFromContext, getScopeKeyFromContext, getThreadSendOptions } from "../scope.js";
@@ -31,7 +35,9 @@ export async function lastCommand(ctx: CommandContext<Context>): Promise<void> {
       return;
     }
 
-    const lastVisibleTurn = await loadLastVisibleTurn(currentSession.id, currentSession.directory);
+    const lastVisibleTurn =
+      (await loadLastAssistantMessage(currentSession.id, currentSession.directory)) ??
+      (await loadLastVisibleTurn(currentSession.id, currentSession.directory));
     if (!lastVisibleTurn) {
       await ctx.reply(t("last.empty"), sendOptions);
       return;

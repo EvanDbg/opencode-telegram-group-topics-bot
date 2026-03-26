@@ -11,7 +11,7 @@ export const TELEGRAM_CHAT_FIELD = {
 } as const;
 
 export const GENERAL_TOPIC = {
-  NAME: "🧭 Session Control",
+  NAME: "🎛️ Session Control",
 } as const;
 
 export const TELEGRAM_ERROR_MARKER = {

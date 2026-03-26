@@ -19,7 +19,7 @@ describe("settings scheduled task persistence", () => {
         projectId: "project-1",
         projectWorktree: "/repo/app",
         threadId: 555,
-        topicName: "Scheduled - App",
+        topicName: "⏰ Scheduled Task Output",
         createdAt: "2026-03-25T00:00:00.000Z",
         updatedAt: "2026-03-25T00:00:00.000Z",
       },

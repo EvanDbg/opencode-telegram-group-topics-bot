@@ -27,10 +27,43 @@ import {
 import { BOT_I18N_KEY, CHAT_TYPE } from "../constants.js";
 import { INTERACTION_CLEAR_REASON } from "../../interaction/constants.js";
 import { getTopicBindingByScopeKey } from "../../topic/manager.js";
+import { getScheduledTaskTopicByChatAndThread } from "../../scheduled-task/store.js";
 
 /** Module-level references for async callbacks that don't have ctx. */
 let botInstance: Bot<Context> | null = null;
 let chatIdInstance: number | null = null;
+
+type PromptRequestOptions = {
+  sessionID: string;
+  directory: string;
+  parts: Array<TextPartInput | FilePartInput>;
+  model?: { providerID: string; modelID: string };
+  agent?: string;
+  variant?: string;
+};
+
+type PromptErrorLogContext = {
+  sessionId: string;
+  directory: string;
+  agent: string;
+  modelProvider: string;
+  modelId: string;
+  variant: string;
+  promptLength: number;
+  fileCount: number;
+};
+
+interface QueuedPromptRequest {
+  sessionId: string;
+  chatId: number;
+  threadId: number | null;
+  promptOptions: PromptRequestOptions;
+  promptErrorLogContext: PromptErrorLogContext;
+  notifyOnQueue: boolean;
+}
+
+const queuedPromptRequests = new Map<string, QueuedPromptRequest[]>();
+const drainingQueuedSessions = new Set<string>();
 
 export function getPromptBotInstance(): Bot<Context> | null {
   return botInstance;
@@ -38,6 +71,217 @@ export function getPromptBotInstance(): Bot<Context> | null {
 
 export function getPromptChatId(): number | null {
   return chatIdInstance;
+}
+
+function getQueuedPromptCount(sessionId: string): number {
+  return queuedPromptRequests.get(sessionId)?.length ?? 0;
+}
+
+function enqueuePromptRequest(request: QueuedPromptRequest): number {
+  const queue = queuedPromptRequests.get(request.sessionId) ?? [];
+  queue.push(request);
+  queuedPromptRequests.set(request.sessionId, queue);
+  return queue.length;
+}
+
+function takeNextQueuedPromptRequest(sessionId: string): QueuedPromptRequest | null {
+  const queue = queuedPromptRequests.get(sessionId);
+  if (!queue || queue.length === 0) {
+    return null;
+  }
+
+  const nextRequest = queue.shift() ?? null;
+  if (queue.length === 0) {
+    queuedPromptRequests.delete(sessionId);
+  } else {
+    queuedPromptRequests.set(sessionId, queue);
+  }
+
+  return nextRequest;
+}
+
+async function sendQueuedPromptNotice(
+  bot: Bot<Context>,
+  chatId: number,
+  threadId: number | null,
+  position: number,
+): Promise<void> {
+  await bot.api
+    .sendMessage(chatId, t("bot.session_queued", { position: String(position) }), {
+      ...getThreadSendOptions(threadId),
+    })
+    .catch(() => {});
+}
+
+function buildPromptRequest(
+  currentSession: { id: string; directory: string },
+  currentAgent: string | null,
+  storedModel: { providerID?: string | null; modelID?: string | null; variant?: string | null },
+  text: string,
+  fileParts: FilePartInput[],
+): { promptOptions: PromptRequestOptions; promptErrorLogContext: PromptErrorLogContext } {
+  const parts: Array<TextPartInput | FilePartInput> = [];
+
+  if (text.trim().length > 0) {
+    parts.push({ type: "text", text });
+  }
+
+  parts.push(...fileParts);
+
+  if (parts.length === 0 || (parts.length > 0 && parts.every((part) => part.type === "file"))) {
+    if (fileParts.length > 0) {
+      parts.unshift({ type: "text", text: "See attached file" });
+    }
+  }
+
+  const promptOptions: PromptRequestOptions = {
+    sessionID: currentSession.id,
+    directory: currentSession.directory,
+    parts,
+    agent: currentAgent ?? undefined,
+  };
+
+  if (storedModel.providerID && storedModel.modelID) {
+    promptOptions.model = {
+      providerID: storedModel.providerID,
+      modelID: storedModel.modelID,
+    };
+
+    if (storedModel.variant) {
+      promptOptions.variant = storedModel.variant;
+    }
+  }
+
+  return {
+    promptOptions,
+    promptErrorLogContext: {
+      sessionId: currentSession.id,
+      directory: currentSession.directory,
+      agent: currentAgent || "default",
+      modelProvider: storedModel.providerID || "default",
+      modelId: storedModel.modelID || "default",
+      variant: storedModel.variant || "default",
+      promptLength: text.length,
+      fileCount: fileParts.length,
+    },
+  };
+}
+
+function submitPromptRequest(bot: Bot<Context>, request: QueuedPromptRequest): void {
+  logger.info(
+    `[Bot] Calling session.promptAsync (fire-and-forget) with agent=${request.promptOptions.agent}, fileCount=${request.promptErrorLogContext.fileCount}...`,
+  );
+
+  safeBackgroundTask({
+    taskName: "session.promptAsync",
+    task: () => opencodeClient.session.promptAsync(request.promptOptions),
+    onSuccess: ({ error }) => {
+      if (error) {
+        const details = formatErrorDetails(error, 6000);
+        const errorType = classifyPromptSubmitError(error);
+        logger.error(
+          "[Bot] OpenCode API returned an error for session.promptAsync",
+          request.promptErrorLogContext,
+        );
+        logger.error("[Bot] session.promptAsync error details:", details);
+        logger.error("[Bot] session.promptAsync raw API error object:", error);
+
+        if (errorType === "busy") {
+          const position = enqueuePromptRequest({
+            ...request,
+            notifyOnQueue: false,
+          });
+          if (request.notifyOnQueue) {
+            void sendQueuedPromptNotice(bot, request.chatId, request.threadId, position);
+          }
+          return;
+        }
+
+        const errorMessageKey =
+          errorType === "session_not_found"
+            ? "bot.prompt_send_error_session_not_found"
+            : "bot.prompt_send_error";
+
+        void bot.api
+          .sendMessage(request.chatId, t(errorMessageKey), {
+            ...getThreadSendOptions(request.threadId),
+          })
+          .catch(() => {});
+        return;
+      }
+
+      logger.info("[Bot] session.promptAsync accepted");
+    },
+    onError: (error) => {
+      const details = formatErrorDetails(error, 6000);
+      const errorType = classifyPromptSubmitError(error);
+      logger.error(
+        "[Bot] session.promptAsync background task failed",
+        request.promptErrorLogContext,
+      );
+      logger.error("[Bot] session.promptAsync background failure details:", details);
+      logger.error("[Bot] session.promptAsync raw background error object:", error);
+
+      if (errorType === "busy") {
+        const position = enqueuePromptRequest({
+          ...request,
+          notifyOnQueue: false,
+        });
+        if (request.notifyOnQueue) {
+          void sendQueuedPromptNotice(bot, request.chatId, request.threadId, position);
+        }
+        return;
+      }
+
+      const errorMessageKey =
+        errorType === "session_not_found"
+          ? "bot.prompt_send_error_session_not_found"
+          : "bot.prompt_send_error";
+
+      void bot.api
+        .sendMessage(request.chatId, t(errorMessageKey), {
+          ...getThreadSendOptions(request.threadId),
+        })
+        .catch(() => {});
+    },
+  });
+}
+
+export async function dispatchNextQueuedPrompt(sessionId: string): Promise<boolean> {
+  if (
+    !botInstance ||
+    drainingQueuedSessions.has(sessionId) ||
+    getQueuedPromptCount(sessionId) === 0
+  ) {
+    return false;
+  }
+
+  const nextRequest = takeNextQueuedPromptRequest(sessionId);
+  if (!nextRequest) {
+    return false;
+  }
+
+  drainingQueuedSessions.add(sessionId);
+  try {
+    const sessionBusy = await isSessionBusy(sessionId, nextRequest.promptOptions.directory);
+    if (sessionBusy) {
+      enqueuePromptRequest(nextRequest);
+      return false;
+    }
+
+    submitPromptRequest(botInstance, {
+      ...nextRequest,
+      notifyOnQueue: false,
+    });
+    return true;
+  } finally {
+    drainingQueuedSessions.delete(sessionId);
+  }
+}
+
+export function __resetQueuedPromptsForTests(): void {
+  queuedPromptRequests.clear();
+  drainingQueuedSessions.clear();
 }
 
 async function isSessionBusy(sessionId: string, directory: string): Promise<boolean> {
@@ -92,6 +336,16 @@ export async function processUserPrompt(
   const scope = getScopeFromContext(ctx);
   const scopeKey = scope?.key ?? GLOBAL_SCOPE_KEY;
   const usePinned = ctx.chat?.type !== CHAT_TYPE.PRIVATE;
+
+  if (
+    scope?.context === SCOPE_CONTEXT.GROUP_TOPIC &&
+    ctx.chat &&
+    typeof scope.threadId === "number" &&
+    (await getScheduledTaskTopicByChatAndThread(ctx.chat.id, scope.threadId))
+  ) {
+    await ctx.reply(t("task.output_topic_blocked"), getThreadSendOptions(scope.threadId));
+    return false;
+  }
 
   const currentProject = getCurrentProject(scopeKey);
   if (!currentProject) {
@@ -213,132 +467,43 @@ export async function processUserPrompt(
 
   const sessionIsBusy = await isSessionBusy(currentSession.id, currentSession.directory);
   if (sessionIsBusy) {
-    logger.info(`[Bot] Ignoring new prompt: session ${currentSession.id} is busy`);
-    await ctx.reply(t("bot.session_busy"));
-    return false;
+    const currentAgent = getStoredAgent(scopeKey);
+    const storedModel = getStoredModel(scopeKey);
+    const queuedRequest = buildPromptRequest(
+      currentSession,
+      currentAgent,
+      storedModel,
+      text,
+      fileParts,
+    );
+    const position = enqueuePromptRequest({
+      sessionId: currentSession.id,
+      chatId: ctx.chat!.id,
+      threadId: scope?.threadId ?? null,
+      promptOptions: queuedRequest.promptOptions,
+      promptErrorLogContext: queuedRequest.promptErrorLogContext,
+      notifyOnQueue: true,
+    });
+
+    logger.info(
+      `[Bot] Queued prompt for busy session ${currentSession.id} at position ${position}`,
+    );
+    await ctx.reply(t("bot.session_queued", { position: String(position) }));
+    return true;
   }
 
   try {
     const currentAgent = getStoredAgent(scopeKey);
     const storedModel = getStoredModel(scopeKey);
 
-    // Build parts array with text and files
-    const parts: Array<TextPartInput | FilePartInput> = [];
-
-    // Add text part if present
-    if (text.trim().length > 0) {
-      parts.push({ type: "text", text });
-    }
-
-    // Add file parts
-    parts.push(...fileParts);
-
-    // If no text and files exist, use a placeholder
-    if (parts.length === 0 || (parts.length > 0 && parts.every((p) => p.type === "file"))) {
-      if (fileParts.length > 0) {
-        // Files without text - add a minimal system prompt
-        parts.unshift({ type: "text", text: "See attached file" });
-      }
-    }
-
-    const promptOptions: {
-      sessionID: string;
-      directory: string;
-      parts: Array<TextPartInput | FilePartInput>;
-      model?: { providerID: string; modelID: string };
-      agent?: string;
-      variant?: string;
-    } = {
-      sessionID: currentSession.id,
-      directory: currentSession.directory,
-      parts,
-      agent: currentAgent,
-    };
-
-    // Use stored model (from settings or config)
-    if (storedModel.providerID && storedModel.modelID) {
-      promptOptions.model = {
-        providerID: storedModel.providerID,
-        modelID: storedModel.modelID,
-      };
-
-      // Add variant if specified
-      if (storedModel.variant) {
-        promptOptions.variant = storedModel.variant;
-      }
-    }
-
-    const promptErrorLogContext = {
+    const request = buildPromptRequest(currentSession, currentAgent, storedModel, text, fileParts);
+    submitPromptRequest(bot, {
       sessionId: currentSession.id,
-      directory: currentSession.directory,
-      agent: currentAgent || "default",
-      modelProvider: storedModel.providerID || "default",
-      modelId: storedModel.modelID || "default",
-      variant: storedModel.variant || "default",
-      promptLength: text.length,
-      fileCount: fileParts.length,
-    };
-
-    logger.info(
-      `[Bot] Calling session.promptAsync (fire-and-forget) with agent=${currentAgent}, fileCount=${fileParts.length}...`,
-    );
-
-    // CRITICAL: DO NOT wait for session.promptAsync to complete.
-    // If we wait, the handler will not finish and grammY will not call getUpdates,
-    // which blocks receiving button callback_query updates.
-    // The processing result will arrive via SSE events.
-    safeBackgroundTask({
-      taskName: "session.promptAsync",
-      task: () => opencodeClient.session.promptAsync(promptOptions),
-      onSuccess: ({ error }) => {
-        if (error) {
-          const details = formatErrorDetails(error, 6000);
-          const errorType = classifyPromptSubmitError(error);
-          logger.error(
-            "[Bot] OpenCode API returned an error for session.promptAsync",
-            promptErrorLogContext,
-          );
-          logger.error("[Bot] session.promptAsync error details:", details);
-          logger.error("[Bot] session.promptAsync raw API error object:", error);
-
-          const errorMessageKey =
-            errorType === "busy"
-              ? "bot.session_busy"
-              : errorType === "session_not_found"
-                ? "bot.prompt_send_error_session_not_found"
-                : "bot.prompt_send_error";
-
-          // Send user-friendly error via API directly because ctx is no longer available
-          void bot.api
-            .sendMessage(ctx.chat!.id, t(errorMessageKey), {
-              ...getThreadSendOptions(scope?.threadId ?? null),
-            })
-            .catch(() => {});
-          return;
-        }
-
-        logger.info("[Bot] session.promptAsync accepted");
-      },
-      onError: (error) => {
-        const details = formatErrorDetails(error, 6000);
-        const errorType = classifyPromptSubmitError(error);
-        logger.error("[Bot] session.promptAsync background task failed", promptErrorLogContext);
-        logger.error("[Bot] session.promptAsync background failure details:", details);
-        logger.error("[Bot] session.promptAsync raw background error object:", error);
-
-        const errorMessageKey =
-          errorType === "busy"
-            ? "bot.session_busy"
-            : errorType === "session_not_found"
-              ? "bot.prompt_send_error_session_not_found"
-              : "bot.prompt_send_error";
-
-        void bot.api
-          .sendMessage(ctx.chat!.id, t(errorMessageKey), {
-            ...getThreadSendOptions(scope?.threadId ?? null),
-          })
-          .catch(() => {});
-      },
+      chatId: ctx.chat!.id,
+      threadId: scope?.threadId ?? null,
+      promptOptions: request.promptOptions,
+      promptErrorLogContext: request.promptErrorLogContext,
+      notifyOnQueue: true,
     });
 
     return true;
