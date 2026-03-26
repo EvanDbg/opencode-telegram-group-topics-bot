@@ -21,6 +21,8 @@ import {
 import { sessionsCommand, handleSessionSelect } from "./commands/sessions.js";
 import { createNewCommand } from "./commands/new.js";
 import { projectsCommand, handleProjectSelect } from "./commands/projects.js";
+import { taskCommand, handleTaskTextAnswer } from "./commands/task.js";
+import { handleTaskListCallback, taskListCommand } from "./commands/tasklist.js";
 import { abortCommand } from "./commands/abort.js";
 import { opencodeStartCommand } from "./commands/opencode-start.js";
 import { opencodeStopCommand } from "./commands/opencode-stop.js";
@@ -59,6 +61,7 @@ import { handleVoiceMessage } from "./handlers/voice.js";
 import { handleDocumentMessage } from "./handlers/document.js";
 import { downloadTelegramFile, toDataUri } from "./utils/file-download.js";
 import { sendBotText } from "./utils/telegram-text.js";
+import { editBotText } from "./utils/telegram-text.js";
 import { extractCommandName } from "./utils/commands.js";
 import {
   isOperationAbortedSessionError,
@@ -82,6 +85,9 @@ import { INTERACTION_CLEAR_REASON } from "../interaction/constants.js";
 import { BOT_I18N_KEY, CHAT_TYPE, GENERAL_TOPIC, TELEGRAM_CHAT_FIELD } from "./constants.js";
 import { TELEGRAM_CHAT_ACTION } from "./telegram-constants.js";
 import { syncTopicTitleForSession } from "../topic/title-sync.js";
+import { finalizeAssistantResponse } from "./utils/finalize-assistant-response.js";
+import { ResponseStreamer } from "./streaming/response-streamer.js";
+import { ToolCallStreamer } from "./streaming/tool-call-streamer.js";
 
 let botInstance: Bot<Context> | null = null;
 const initializedCommandChats = new Set<number>();
@@ -209,7 +215,6 @@ function extractSessionTitleUpdate(
 }
 
 const TELEGRAM_DOCUMENT_CAPTION_MAX_LENGTH = 1024;
-const SESSION_RETRY_PREFIX = "🔁";
 const sessionErrorThrottle = new SessionErrorThrottle(3000);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -243,6 +248,85 @@ function prepareDocumentCaption(caption: string): string {
 
   return `${normalizedCaption.slice(0, TELEGRAM_DOCUMENT_CAPTION_MAX_LENGTH - 3)}...`;
 }
+
+async function sendSessionTextMessage(
+  sessionId: string,
+  text: string,
+  format: "raw" | "markdown_v2" = "raw",
+): Promise<number | null> {
+  if (!botInstance) {
+    return null;
+  }
+
+  const target = getTargetBySessionId(sessionId);
+  if (!target) {
+    return null;
+  }
+
+  const message = await sendBotText({
+    api: botInstance.api,
+    chatId: target.chatId,
+    text,
+    options: {
+      disable_notification: true,
+      ...getThreadSendOptions(target.threadId),
+    },
+    format,
+  });
+
+  return message.message_id;
+}
+
+async function editSessionTextMessage(
+  sessionId: string,
+  messageId: number,
+  text: string,
+  format: "raw" | "markdown_v2" = "raw",
+  _includeKeyboard: boolean = false,
+): Promise<void> {
+  if (!botInstance) {
+    return;
+  }
+
+  const target = getTargetBySessionId(sessionId);
+  if (!target) {
+    return;
+  }
+
+  await editBotText({
+    api: botInstance.api,
+    chatId: target.chatId,
+    messageId,
+    text,
+    format,
+  });
+}
+
+async function deleteSessionMessage(sessionId: string, messageId: number): Promise<void> {
+  if (!botInstance) {
+    return;
+  }
+
+  const target = getTargetBySessionId(sessionId);
+  if (!target) {
+    return;
+  }
+
+  await botInstance.api.deleteMessage(target.chatId, messageId);
+}
+
+const responseStreamer = new ResponseStreamer({
+  sendText: sendSessionTextMessage,
+  editText: editSessionTextMessage,
+  deleteMessage: deleteSessionMessage,
+});
+
+const toolCallStreamer = new ToolCallStreamer({
+  sendText: async (sessionId, text) => await sendSessionTextMessage(sessionId, text, "raw"),
+  editText: async (sessionId, messageId, text) =>
+    await editSessionTextMessage(sessionId, messageId, text, "raw"),
+  deleteMessage: deleteSessionMessage,
+});
 
 const toolMessageBatcher = new ToolMessageBatcher({
   intervalSeconds: 5,
@@ -347,6 +431,25 @@ async function ensureEventSubscription(directory: string): Promise<void> {
   toolMessageBatcher.setIntervalSeconds(config.bot.serviceMessagesIntervalSec);
   summaryAggregator.setOnCleared(() => {
     toolMessageBatcher.clearAll("summary_aggregator_clear");
+    void toolCallStreamer.clearAll("summary_aggregator_clear");
+    void responseStreamer.clearAll("summary_aggregator_clear");
+  });
+
+  summaryAggregator.setOnMessageUpdated((sessionId, messageText) => {
+    enqueueSessionDelivery(sessionId, async () => {
+      const parts = formatSummary(messageText);
+      const assistantParseMode = getAssistantParseMode();
+      const assistantMessageFormat = assistantParseMode === "MarkdownV2" ? "markdown_v2" : "raw";
+
+      if (parts.length !== 1) {
+        responseStreamer.markFallback(sessionId);
+        await toolCallStreamer.clearThinkingOnlySession(sessionId);
+        return;
+      }
+
+      await toolCallStreamer.clearThinkingOnlySession(sessionId);
+      await responseStreamer.update(sessionId, parts[0], assistantMessageFormat);
+    });
   });
 
   summaryAggregator.setOnComplete((sessionId, messageText) => {
@@ -362,35 +465,50 @@ async function ensureEventSubscription(directory: string): Promise<void> {
       }
 
       await toolMessageBatcher.flushSession(sessionId, "assistant_message_completed");
+      await toolCallStreamer.clearSession(sessionId, "assistant_message_completed");
 
       try {
-        const parts = formatSummary(messageText);
-        const assistantParseMode = getAssistantParseMode();
-        const assistantMessageFormat = assistantParseMode === "MarkdownV2" ? "markdown_v2" : "raw";
-
-        logger.debug(
-          `[Bot] Sending completed message to Telegram (chatId=${target.chatId}, parts=${parts.length})`,
-        );
-
-        for (let i = 0; i < parts.length; i++) {
-          const isLastPart = i === parts.length - 1;
-          const keyboard =
-            isLastPart && keyboardManager.isInitialized(target.scopeKey)
-              ? keyboardManager.getKeyboard(target.scopeKey)
-              : undefined;
-          const options = keyboard ? { reply_markup: keyboard } : undefined;
-
-          await sendBotText({
-            api: botInstance.api,
-            chatId: target.chatId,
-            text: parts[i],
-            options: {
-              ...(options || {}),
-              ...getThreadSendOptions(target.threadId),
-            },
-            format: assistantMessageFormat,
-          });
+        const activeBot = botInstance;
+        if (!activeBot) {
+          return;
         }
+
+        const result = await finalizeAssistantResponse({
+          sessionId,
+          messageText,
+          responseStreamer,
+          sendFallback: async (parts, assistantMessageFormat) => {
+            logger.debug(
+              `[Bot] Sending completed message to Telegram (chatId=${target.chatId}, parts=${parts.length})`,
+            );
+
+            for (let i = 0; i < parts.length; i++) {
+              const isLastPart = i === parts.length - 1;
+              const keyboard =
+                isLastPart && keyboardManager.isInitialized(target.scopeKey)
+                  ? keyboardManager.getKeyboard(target.scopeKey)
+                  : undefined;
+              const options = keyboard ? { reply_markup: keyboard } : undefined;
+
+              await sendBotText({
+                api: activeBot.api,
+                chatId: target.chatId,
+                text: parts[i],
+                options: {
+                  ...(options || {}),
+                  ...getThreadSendOptions(target.threadId),
+                },
+                format: assistantMessageFormat,
+              });
+            }
+          },
+        });
+
+        logger.debug("[Bot] Assistant completion finalized", {
+          sessionId,
+          streamed: result.streamed,
+          partCount: result.partCount,
+        });
       } catch (err) {
         logger.error("Failed to send message to Telegram:", err);
         logger.warn("[Bot] Assistant message delivery failed; keeping event processing active");
@@ -417,7 +535,19 @@ async function ensureEventSubscription(directory: string): Promise<void> {
       const projectWorktree = target ? getCurrentProject(target.scopeKey)?.worktree : undefined;
       const message = formatToolInfo(toolInfo, projectWorktree);
       if (message) {
-        toolMessageBatcher.enqueue(toolInfo.sessionId, message);
+        const status = "status" in toolInfo.state ? toolInfo.state.status : undefined;
+
+        if (status === "running") {
+          toolCallStreamer.pushUpdate(toolInfo.sessionId, `⏳ ${message}`);
+          return;
+        }
+
+        if (status === "error") {
+          toolCallStreamer.pushUpdate(toolInfo.sessionId, `❌ ${message}`);
+          return;
+        }
+
+        toolCallStreamer.pushUpdate(toolInfo.sessionId, `✅ ${message}`);
       }
     } catch (err) {
       logger.error("Failed to send tool notification to Telegram:", err);
@@ -453,6 +583,7 @@ async function ensureEventSubscription(directory: string): Promise<void> {
       }
 
       await toolMessageBatcher.flushSession(sessionId, "question_asked");
+      await toolCallStreamer.clearSession(sessionId, "question_asked");
 
       const target = getTargetBySessionId(sessionId);
       if (!target) {
@@ -512,6 +643,7 @@ async function ensureEventSubscription(directory: string): Promise<void> {
       }
 
       await toolMessageBatcher.flushSession(request.sessionID, "permission_asked");
+      await toolCallStreamer.clearSession(request.sessionID, "permission_asked");
 
       logger.info(
         `[Bot] Received permission request from agent: type=${request.permission}, requestID=${request.id}`,
@@ -568,7 +700,7 @@ async function ensureEventSubscription(directory: string): Promise<void> {
 
     logger.debug("[Bot] Agent started thinking");
 
-    toolMessageBatcher.enqueue(sessionId, t("bot.thinking"));
+    toolCallStreamer.showThinking(sessionId, t("bot.thinking"));
   });
 
   summaryAggregator.setOnTokens(async (sessionId, tokens) => {
@@ -613,6 +745,7 @@ async function ensureEventSubscription(directory: string): Promise<void> {
   summaryAggregator.setOnSessionIdle((sessionId) => {
     enqueueSessionDelivery(sessionId, async () => {
       await toolMessageBatcher.flushSession(sessionId, "session_idle");
+      await toolCallStreamer.clearSession(sessionId, "session_idle");
     });
   });
 
@@ -628,6 +761,7 @@ async function ensureEventSubscription(directory: string): Promise<void> {
       }
 
       await toolMessageBatcher.flushSession(sessionId, "session_error");
+      await toolCallStreamer.clearSession(sessionId, "session_error");
 
       const normalizedMessage = message.trim() || t("common.unknown_error");
 
@@ -668,7 +802,7 @@ async function ensureEventSubscription(directory: string): Promise<void> {
         : normalizedMessage;
 
     const retryMessage = t("bot.session_retry", { message: truncatedMessage });
-    toolMessageBatcher.enqueueUniqueByPrefix(sessionId, retryMessage, SESSION_RETRY_PREFIX);
+    toolCallStreamer.pushUpdate(sessionId, retryMessage);
   });
 
   summaryAggregator.setOnSessionDiff(async (sessionId, diffs) => {
@@ -885,6 +1019,8 @@ export function createBot(): Bot<Context> {
   bot.command(BOT_COMMAND.OPENCODE_START, opencodeStartCommand);
   bot.command(BOT_COMMAND.OPENCODE_STOP, opencodeStopCommand);
   bot.command(BOT_COMMAND.PROJECTS, projectsCommand);
+  bot.command(BOT_COMMAND.TASK, taskCommand);
+  bot.command(BOT_COMMAND.TASKLIST, taskListCommand);
   bot.command(BOT_COMMAND.SESSIONS, sessionsCommand);
   bot.command(BOT_COMMAND.NEW, createNewCommand({ ensureEventSubscription }));
   bot.command(BOT_COMMAND.ABORT, abortCommand);
@@ -906,6 +1042,7 @@ export function createBot(): Bot<Context> {
       const handledInlineCancel = await handleInlineMenuCancel(ctx);
       const handledSession = await handleSessionSelect(ctx);
       const handledProject = await handleProjectSelect(ctx);
+      const handledTaskList = await handleTaskListCallback(ctx);
       const handledQuestion = await handleQuestionCallback(ctx);
       const handledPermission = await handlePermissionCallback(ctx);
       const handledAgent = await handleAgentSelect(ctx);
@@ -916,13 +1053,14 @@ export function createBot(): Bot<Context> {
       const handledCommands = await handleCommandsCallback(ctx, { ensureEventSubscription });
 
       logger.debug(
-        `[Bot] Callback handled: inlineCancel=${handledInlineCancel}, session=${handledSession}, project=${handledProject}, question=${handledQuestion}, permission=${handledPermission}, agent=${handledAgent}, model=${handledModel}, variant=${handledVariant}, compactConfirm=${handledCompactConfirm}, rename=${handledRenameCancel}, commands=${handledCommands}`,
+        `[Bot] Callback handled: inlineCancel=${handledInlineCancel}, session=${handledSession}, project=${handledProject}, taskList=${handledTaskList}, question=${handledQuestion}, permission=${handledPermission}, agent=${handledAgent}, model=${handledModel}, variant=${handledVariant}, compactConfirm=${handledCompactConfirm}, rename=${handledRenameCancel}, commands=${handledCommands}`,
       );
 
       if (
         !handledInlineCancel &&
         !handledSession &&
         !handledProject &&
+        !handledTaskList &&
         !handledQuestion &&
         !handledPermission &&
         !handledAgent &&
@@ -1189,6 +1327,11 @@ export function createBot(): Bot<Context> {
 
     const handledRename = await handleRenameTextAnswer(ctx);
     if (handledRename) {
+      return;
+    }
+
+    const handledTask = await handleTaskTextAnswer(ctx);
+    if (handledTask) {
       return;
     }
 

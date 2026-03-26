@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Bot, Context } from "grammy";
+import type { Context } from "grammy";
 import {
   commandsCommand,
   handleCommandTextArguments,
@@ -64,6 +64,26 @@ vi.mock("../../../src/opencode/client.js", () => ({
       create: mocked.sessionCreateMock,
       command: mocked.sessionCommandMock,
     },
+  },
+}));
+
+vi.mock("../../../src/config.js", () => ({
+  config: {
+    server: {
+      logLevel: "info",
+    },
+    bot: {
+      commandsListLimit: 2,
+    },
+  },
+}));
+
+vi.mock("../../../src/utils/logger.js", () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
@@ -162,7 +182,6 @@ function createTextContext(text: string): Context {
 
 function createDeps(): ExecuteCommandDeps {
   return {
-    bot: {} as Bot<Context>,
     ensureEventSubscription: mocked.ensureEventSubscriptionMock,
   };
 }
@@ -234,6 +253,76 @@ describe("bot/commands/commands", () => {
     expect(state?.metadata.flow).toBe("commands");
     expect(state?.metadata.stage).toBe("list");
     expect(state?.metadata.messageId).toBe(123);
+    expect(state?.metadata.page).toBe(0);
+  });
+
+  it("filters non-command entries and paginates command list", async () => {
+    mocked.commandListMock.mockResolvedValue({
+      data: [
+        { name: "init", description: "create/update AGENTS.md" },
+        { name: "skill-helper", description: "hidden", source: "skill" },
+        { name: "deploy", description: "ship it" },
+        { name: "mcp-helper", description: "hidden", source: "mcp", type: "prompt" },
+        { name: "review", description: "review changes" },
+      ],
+      error: null,
+    });
+
+    const ctx = createCommandContext(124);
+    await commandsCommand(ctx as never);
+
+    expect(ctx.reply).toHaveBeenCalledWith(
+      t("commands.select_page", { current: 1, total: 2 }),
+      expect.objectContaining({ reply_markup: expect.any(Object) }),
+    );
+
+    const [, options] = (ctx.reply as ReturnType<typeof vi.fn>).mock.calls[0] as [
+      string,
+      {
+        reply_markup: { inline_keyboard: Array<Array<{ callback_data?: string; text?: string }>> };
+      },
+    ];
+    expect(options.reply_markup.inline_keyboard[0]?.[0]?.callback_data).toBe("commands:select:0");
+    expect(options.reply_markup.inline_keyboard[1]?.[0]?.callback_data).toBe("commands:select:1");
+    expect(options.reply_markup.inline_keyboard[2]?.[0]?.callback_data).toBe("commands:page:1");
+    expect(options.reply_markup.inline_keyboard[3]?.[0]?.callback_data).toBe("commands:cancel");
+
+    const state = interactionManager.getSnapshot();
+    expect(state?.metadata.commands).toEqual([
+      { name: "init", description: "create/update AGENTS.md" },
+      { name: "deploy", description: "ship it" },
+      { name: "review", description: "review changes" },
+    ]);
+  });
+
+  it("switches command pages via callback", async () => {
+    interactionManager.start({
+      kind: "custom",
+      expectedInput: "callback",
+      metadata: {
+        flow: "commands",
+        stage: "list",
+        messageId: 322,
+        projectDirectory: "D:\\Projects\\Repo",
+        commands: [
+          { name: "init", description: "create/update AGENTS.md" },
+          { name: "deploy", description: "ship it" },
+          { name: "review", description: "review changes" },
+        ],
+        page: 0,
+      },
+    });
+
+    const callbackCtx = createCallbackContext("commands:page:1", 322);
+    const handled = await handleCommandsCallback(callbackCtx, createDeps());
+
+    expect(handled).toBe(true);
+    expect(callbackCtx.editMessageText).toHaveBeenCalledWith(
+      t("commands.select_page", { current: 2, total: 2 }),
+      expect.objectContaining({ reply_markup: expect.any(Object) }),
+    );
+    expect(callbackCtx.answerCallbackQuery).toHaveBeenCalledWith();
+    expect(interactionManager.getSnapshot()?.metadata.page).toBe(1);
   });
 
   it("transitions to confirmation step after selecting command", async () => {
@@ -249,6 +338,7 @@ describe("bot/commands/commands", () => {
           { name: "init", description: "create/update AGENTS.md" },
           { name: "poem", description: "write a poem" },
         ],
+        page: 0,
       },
     });
 
@@ -289,7 +379,7 @@ describe("bot/commands/commands", () => {
     expect(handled).toBe(true);
     expect(interactionManager.getSnapshot()).toBeNull();
     expect(ctx.deleteMessage).toHaveBeenCalledTimes(1);
-    expect(ctx.reply).toHaveBeenCalledWith(`${t("commands.executing_prefix")}\n／poem`, {});
+    expect(ctx.reply).toHaveBeenCalledWith(t("commands.executing", { command: "/poem" }), {});
     expect(mocked.ensureEventSubscriptionMock).toHaveBeenCalledWith("D:\\Projects\\Repo");
     expect(mocked.setSessionSummaryMock).toHaveBeenCalledWith("session-1");
     expect(mocked.sessionCommandMock).toHaveBeenCalledWith({
@@ -324,7 +414,7 @@ describe("bot/commands/commands", () => {
     expect(interactionManager.getSnapshot()).toBeNull();
     expect(ctx.api.deleteMessage).toHaveBeenCalledWith(777, 500);
     expect(ctx.reply).toHaveBeenCalledWith(
-      `${t("commands.executing_prefix")}\n／poem about spring`,
+      t("commands.executing", { command: "/poem about spring" }),
       {},
     );
     expect(mocked.sessionCommandMock).toHaveBeenCalledWith({
@@ -348,6 +438,7 @@ describe("bot/commands/commands", () => {
         messageId: 600,
         projectDirectory: "D:\\Projects\\Repo",
         commands: [{ name: "init", description: "create/update AGENTS.md" }],
+        page: 0,
       },
     });
 
@@ -361,5 +452,4 @@ describe("bot/commands/commands", () => {
     });
     expect(interactionManager.getSnapshot()?.kind).toBe("custom");
   });
-
 });

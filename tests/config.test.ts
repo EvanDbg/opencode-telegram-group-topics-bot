@@ -109,4 +109,20 @@ describe("config boolean env parsing", () => {
 
     expect(config.bot.locale).toBe("fr");
   });
+
+  it("uses 30 seconds as default scheduled task poll interval", async () => {
+    vi.stubEnv("SCHEDULED_TASK_POLL_INTERVAL_SEC", "");
+
+    const config = await loadConfig();
+
+    expect(config.bot.scheduledTasksPollIntervalSec).toBe(30);
+  });
+
+  it("parses scheduled task poll interval", async () => {
+    vi.stubEnv("SCHEDULED_TASK_POLL_INTERVAL_SEC", "45");
+
+    const config = await loadConfig();
+
+    expect(config.bot.scheduledTasksPollIntervalSec).toBe(45);
+  });
 });

@@ -46,6 +46,7 @@ export async function resetSingletonState(): Promise<void> {
     { keyboardManager },
     { pinnedMessageManager },
     { processManager },
+    { taskCreationManager },
     { stopEventListening },
     { __resetSessionDirectoryCacheForTests },
   ] = await Promise.all([
@@ -57,6 +58,7 @@ export async function resetSingletonState(): Promise<void> {
     import("../../src/keyboard/manager.js"),
     import("../../src/pinned/manager.js"),
     import("../../src/process/manager.js"),
+    import("../../src/scheduled-task/creation-manager.js"),
     import("../../src/opencode/events.js"),
     import("../../src/session/cache-manager.js"),
   ]);
@@ -65,6 +67,7 @@ export async function resetSingletonState(): Promise<void> {
   questionManager.clear();
   permissionManager.clear();
   renameManager.clear();
+  taskCreationManager.clearAll();
   interactionManager.clear("test_reset");
   summaryAggregator.clear();
 

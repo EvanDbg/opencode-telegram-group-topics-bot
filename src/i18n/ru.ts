@@ -8,6 +8,8 @@ export const ru: I18nDictionary = {
   "cmd.description.sessions": "Список сессий",
   "cmd.description.last": "Показать последнее сообщение сессии",
   "cmd.description.projects": "Список проектов",
+  "cmd.description.task": "Создать отложенную задачу",
+  "cmd.description.tasklist": "Список отложенных задач",
   "cmd.description.commands": "Пользовательские команды",
   "cmd.description.model": "Выбрать модель",
   "cmd.description.agent": "Выбрать режим агента",
@@ -176,6 +178,35 @@ export const ru: I18nDictionary = {
   "new.general_open_link": "🔗 Открыть тему: {url}",
   "new.create_error": "🔴 OpenCode Server недоступен или произошла ошибка при создании сессии.",
 
+  "task.project_not_selected":
+    "🏗 Проект не выбран.\n\nСначала выберите проект командой /projects.",
+  "task.schedule_prompt":
+    "Отправьте расписание для этой задачи. Примеры: `каждый будний день в 09:00` или `завтра в 18:30`.",
+  "task.schedule_parsing": "⏳ Я все еще разбираю расписание. Дождитесь предпросмотра.",
+  "task.schedule_preview":
+    "Расписание распознано.\n\nОписание: {summary}\nСледующий запуск: {nextRunAt}\n\nТеперь отправьте промпт для этой задачи.",
+  "task.prompt_prompt": "Отправьте промпт для этой отложенной задачи.",
+  "task.schedule_error":
+    "⚠️ Я не смог разобрать это расписание: {message}\n\nОтправьте более понятное описание.",
+  "task.created":
+    "✅ Отложенная задача создана.\n\nРасписание: {summary}\nСледующий запуск: {nextRunAt}",
+  "task.created_topic_link": "🔗 Запуски по расписанию будут публиковаться здесь: {url}",
+  "task.create_error": "🔴 Не удалось создать отложенную задачу.",
+  "task.blocked.expected_text":
+    "⚠️ Сначала завершите настройку отложенной задачи или используйте /abort для отмены.",
+  "task.blocked.command_not_allowed":
+    "⚠️ Эта команда недоступна, пока активна настройка отложенной задачи.",
+  "task.list.title": "Отложенные задачи:",
+  "task.list.empty": "📭 Для этого проекта в этом чате нет отложенных задач.",
+  "task.list.none": "не запланировано",
+  "task.list.next_run": "Следующий запуск: {value}",
+  "task.list.status": "Статус: {value}",
+  "task.list.prompt": "Промпт: {value}",
+  "task.list.delete_button": "Удалить #{index}",
+  "task.list.deleted": "Отложенная задача удалена",
+  "task.list.delete_missing": "Отложенная задача не найдена",
+  "task.list.delete_error": "Не удалось удалить отложенную задачу",
+
   "cleanup.topic_use_general": "⚠️ Выполните /cleanup из темы General.",
   "cleanup.requires_forum_general":
     "⚠️ /cleanup доступен только в теме General супергруппы с включёнными форумами.",
@@ -333,6 +364,7 @@ export const ru: I18nDictionary = {
   "pinned.line.project": "Project: {project}",
   "pinned.line.model": "Model: {model}",
   "pinned.line.context": "Context: {used} / {limit} ({percent}%)",
+  "pinned.line.cost": "Cost: {cost}",
   "pinned.files.title": "Files ({count}):",
   "pinned.files.item": "  {path}{diff}",
   "pinned.files.more": "  ... and {count} more",
@@ -387,14 +419,17 @@ export const ru: I18nDictionary = {
   "commands.empty": "📭 Для этого проекта нет доступных команд OpenCode.",
   "commands.fetch_error": "🔴 Не удалось загрузить список команд OpenCode.",
   "commands.no_description": "Без описания",
+  "commands.select_page": "Выберите команду OpenCode ({current}/{total}):",
   "commands.button.execute": "✅ Выполнить",
+  "commands.button.prev_page": "⬅️ Назад",
+  "commands.button.next_page": "Далее ➡️",
   "commands.button.cancel": "❌ Отмена",
   "commands.confirm":
-    "Подтвердите выполнение команды {command}. Для выполнения с аргументами отправьте аргументы отдельным сообщением.",
+    "Выполнить {command}? Отправьте текстовым сообщением аргументы или нажмите Выполнить, чтобы запустить команду без изменений.",
   "commands.inactive_callback": "Это меню команд уже неактивно",
   "commands.cancelled_callback": "Отменено",
   "commands.execute_callback": "Запускаю команду...",
-  "commands.executing_prefix": "⚡ Выполнение команды:",
+  "commands.executing": "⚡ Запускаю команду OpenCode\n{command}",
   "commands.arguments_empty":
     "⚠️ Аргументы не могут быть пустыми. Отправьте текст или нажмите Выполнить.",
   "commands.execute_error": "🔴 Не удалось выполнить команду OpenCode.",

@@ -8,6 +8,8 @@ export const es: I18nDictionary = {
   "cmd.description.sessions": "Listar sesiones",
   "cmd.description.last": "Mostrar el último mensaje de la sesión",
   "cmd.description.projects": "Listar proyectos",
+  "cmd.description.task": "Crear una tarea programada",
+  "cmd.description.tasklist": "Listar tareas programadas",
   "cmd.description.commands": "Comandos personalizados",
   "cmd.description.model": "Seleccionar modelo",
   "cmd.description.agent": "Seleccionar modo de agente",
@@ -183,6 +185,35 @@ export const es: I18nDictionary = {
   "new.create_error":
     "🔴 OpenCode Server no está disponible u ocurrió un error al crear la sesión.",
 
+  "task.project_not_selected":
+    "🏗 No hay un proyecto seleccionado.\n\nPrimero selecciona un proyecto con /projects.",
+  "task.schedule_prompt":
+    "Envía el horario para esta tarea. Ejemplos: `cada día laboral a las 09:00` o `mañana a las 18:30`.",
+  "task.schedule_parsing": "⏳ Todavía estoy interpretando el horario. Espera la vista previa.",
+  "task.schedule_preview":
+    "Horario interpretado.\n\nResumen: {summary}\nPróxima ejecución: {nextRunAt}\n\nAhora envía el prompt que debe ejecutarse con ese horario.",
+  "task.prompt_prompt": "Envía el prompt para esta tarea programada.",
+  "task.schedule_error":
+    "⚠️ No pude interpretar ese horario: {message}\n\nEnvía una descripción más clara.",
+  "task.created":
+    "✅ Tarea programada creada.\n\nHorario: {summary}\nPróxima ejecución: {nextRunAt}",
+  "task.created_topic_link": "🔗 Las ejecuciones programadas se publicarán aquí: {url}",
+  "task.create_error": "🔴 No se pudo crear la tarea programada.",
+  "task.blocked.expected_text":
+    "⚠️ Termina primero la configuración de la tarea programada o usa /abort para cancelarla.",
+  "task.blocked.command_not_allowed":
+    "⚠️ Este comando no está disponible mientras la configuración de la tarea programada está activa.",
+  "task.list.title": "Tareas programadas:",
+  "task.list.empty": "📭 No hay tareas programadas para este proyecto en este chat.",
+  "task.list.none": "sin programación",
+  "task.list.next_run": "Próxima ejecución: {value}",
+  "task.list.status": "Estado: {value}",
+  "task.list.prompt": "Prompt: {value}",
+  "task.list.delete_button": "Eliminar #{index}",
+  "task.list.deleted": "Tarea programada eliminada",
+  "task.list.delete_missing": "No se encontró la tarea programada",
+  "task.list.delete_error": "No se pudo eliminar la tarea programada",
+
   "cleanup.topic_use_general": "⚠️ Ejecuta /cleanup desde el tema General.",
   "cleanup.requires_forum_general":
     "⚠️ /cleanup solo está disponible en el tema General de un supergrupo con foros habilitados.",
@@ -342,6 +373,7 @@ export const es: I18nDictionary = {
   "pinned.line.project": "Proyecto: {project}",
   "pinned.line.model": "Modelo: {model}",
   "pinned.line.context": "Contexto: {used} / {limit} ({percent}%)",
+  "pinned.line.cost": "Costo: {cost}",
   "pinned.files.title": "Archivos ({count}):",
   "pinned.files.item": "  {path}{diff}",
   "pinned.files.more": "  ... y {count} más",
@@ -398,14 +430,17 @@ export const es: I18nDictionary = {
   "commands.empty": "📭 No hay comandos de OpenCode disponibles para este proyecto.",
   "commands.fetch_error": "🔴 No se pudieron cargar los comandos de OpenCode.",
   "commands.no_description": "Sin descripción",
+  "commands.select_page": "Elige un comando de OpenCode ({current}/{total}):",
   "commands.button.execute": "✅ Ejecutar",
+  "commands.button.prev_page": "⬅️ Anterior",
+  "commands.button.next_page": "Siguiente ➡️",
   "commands.button.cancel": "❌ Cancelar",
   "commands.confirm":
-    "Confirma la ejecución del comando {command}. Para ejecutarlo con argumentos, envía los argumentos como mensaje.",
+    "¿Ejecutar {command}? Envía una respuesta de texto para pasar argumentos o toca Ejecutar para lanzarlo tal cual.",
   "commands.inactive_callback": "Este menú de comandos está inactivo",
   "commands.cancelled_callback": "Cancelado",
   "commands.execute_callback": "Ejecutando comando...",
-  "commands.executing_prefix": "⚡ Ejecutando comando:",
+  "commands.executing": "⚡ Iniciando comando de OpenCode\n{command}",
   "commands.arguments_empty":
     "⚠️ Los argumentos no pueden estar vacíos. Envía texto o toca Ejecutar.",
   "commands.execute_error": "🔴 No se pudo ejecutar el comando de OpenCode.",

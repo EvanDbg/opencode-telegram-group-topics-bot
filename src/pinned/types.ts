@@ -7,6 +7,7 @@ export interface TokensInfo {
   reasoning: number;
   cacheRead: number;
   cacheWrite: number;
+  cost: number;
 }
 
 /**
@@ -31,6 +32,7 @@ export interface PinnedMessageState {
   projectName: string;
   tokensUsed: number;
   tokensLimit: number;
+  assistantCost: number;
   lastUpdated: number;
   changedFiles: FileChange[];
 }

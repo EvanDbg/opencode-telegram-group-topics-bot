@@ -39,6 +39,7 @@ class PinnedMessageManager {
       projectName: "",
       tokensUsed: 0,
       tokensLimit: 0,
+      assistantCost: 0,
       lastUpdated: 0,
       changedFiles: [],
     };
@@ -96,6 +97,7 @@ class PinnedMessageManager {
     const context = this.getContext(scopeKey);
     const state = context.state;
     state.tokensUsed = 0;
+    state.assistantCost = 0;
     state.sessionId = sessionId;
     state.sessionTitle = sessionTitle || t("pinned.default_session_title");
 
@@ -112,6 +114,9 @@ class PinnedMessageManager {
     state.changedFiles = [];
     await this.unpinOldMessage(scopeKey);
     await this.createPinnedMessage(scopeKey);
+    if (project?.worktree) {
+      await this.loadContextFromHistory(sessionId, project.worktree, scopeKey);
+    }
     await this.loadDiffsFromApi(sessionId, scopeKey);
   }
 
@@ -146,6 +151,7 @@ class PinnedMessageManager {
 
         const assistantInfo = info as {
           summary?: boolean;
+          cost?: number;
           tokens?: { input: number; cache?: { read: number } };
         };
         if (assistantInfo.summary) {
@@ -157,6 +163,8 @@ class PinnedMessageManager {
         if (contextSize > maxContextSize) {
           maxContextSize = contextSize;
         }
+
+        context.state.assistantCost += assistantInfo.cost || 0;
       });
 
       context.state.tokensUsed = maxContextSize;
@@ -182,6 +190,7 @@ class PinnedMessageManager {
 
     const context = this.getContext(scopeKey);
     context.state.tokensUsed = tokens.input + tokens.cacheRead;
+    context.state.assistantCost += tokens.cost;
     await this.refreshSessionTitle(scopeKey);
     this.scheduleDebouncedUpdate(scopeKey, 1200);
   }
@@ -378,6 +387,17 @@ class PinnedMessageManager {
     return count.toString();
   }
 
+  private formatCost(cost: number): string {
+    if (cost <= 0) {
+      return "$0.00";
+    }
+
+    const decimals = cost >= 1 ? 2 : cost >= 0.01 ? 3 : cost >= 0.001 ? 4 : 5;
+    const normalized = cost.toFixed(decimals).replace(/(\.\d*?[1-9])0+$/u, "$1");
+
+    return `$${normalized.replace(/\.0+$/u, "")}`;
+  }
+
   private formatMessage(scopeKey: string): string {
     const context = this.getContext(scopeKey);
     const state = context.state;
@@ -398,6 +418,7 @@ class PinnedMessageManager {
         limit: this.formatTokenCount(state.tokensLimit),
         percent: percentage,
       }),
+      t("pinned.line.cost", { cost: this.formatCost(state.assistantCost) }),
     ];
 
     if (state.changedFiles.length > 0) {

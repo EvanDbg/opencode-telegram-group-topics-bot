@@ -15,6 +15,7 @@ export interface SummaryInfo {
 }
 
 type MessageCompleteCallback = (sessionId: string, messageText: string) => void;
+type MessageUpdatedCallback = (sessionId: string, messageText: string) => void;
 
 export interface ToolInfo {
   sessionId: string;
@@ -51,6 +52,7 @@ export interface TokensInfo {
   reasoning: number;
   cacheRead: number;
   cacheWrite: number;
+  cost: number;
 }
 
 type TokensCallback = (sessionId: string, tokens: TokensInfo) => void;
@@ -149,6 +151,7 @@ class SummaryAggregator {
   private messageCount = 0;
   private lastUpdated = 0;
   private onCompleteCallback: MessageCompleteCallback | null = null;
+  private onMessageUpdatedCallback: MessageUpdatedCallback | null = null;
   private onToolCallback: ToolCallback | null = null;
   private onToolFileCallback: ToolFileCallback | null = null;
   private onQuestionCallback: QuestionCallback | null = null;
@@ -170,6 +173,8 @@ class SummaryAggregator {
   private activeTypingSessions: Set<string> = new Set();
   private partHashes: Map<string, Set<string>> = new Map();
   private completionTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private stepFinishCosts: Map<string, number> = new Map();
+  private lastStreamedMessageText: Map<string, string> = new Map();
 
   private getMessageKey(sessionId: string, messageId: string): string {
     return `${sessionId}:${messageId}`;
@@ -181,6 +186,10 @@ class SummaryAggregator {
 
   setOnComplete(callback: MessageCompleteCallback): void {
     this.onCompleteCallback = callback;
+  }
+
+  setOnMessageUpdated(callback: MessageUpdatedCallback): void {
+    this.onMessageUpdatedCallback = callback;
   }
 
   setOnTool(callback: ToolCallback): void {
@@ -384,6 +393,8 @@ class SummaryAggregator {
       this.currentMessageParts.delete(messageKey);
       this.pendingParts.delete(messageKey);
       this.partHashes.delete(messageKey);
+      this.stepFinishCosts.delete(messageKey);
+      this.lastStreamedMessageText.delete(messageKey);
       this.thinkingFiredForMessages.delete(messageKey);
       this.clearCompletionTimer(messageKey);
     }
@@ -396,6 +407,8 @@ class SummaryAggregator {
     this.pendingParts.clear();
     this.messages.clear();
     this.partHashes.clear();
+    this.stepFinishCosts.clear();
+    this.lastStreamedMessageText.clear();
     for (const timer of this.completionTimers.values()) {
       clearTimeout(timer);
     }
@@ -441,6 +454,7 @@ class SummaryAggregator {
       const current = this.currentMessageParts.get(messageKey) || [];
       this.currentMessageParts.set(messageKey, [...current, ...pending]);
       this.pendingParts.delete(messageKey);
+      this.emitMessageUpdated(messageKey, info.sessionID);
 
       const assistantMessage = info as { time?: { created: number; completed?: number } };
       const time = assistantMessage.time;
@@ -448,6 +462,7 @@ class SummaryAggregator {
       if (time?.completed) {
         // Extract and report tokens BEFORE onComplete so keyboard context is updated
         const assistantInfo = info as {
+          cost?: number;
           tokens?: {
             input: number;
             output: number;
@@ -456,16 +471,22 @@ class SummaryAggregator {
           };
         };
 
-        if (this.onTokensCallback && assistantInfo.tokens) {
+        const messageCost =
+          typeof assistantInfo.cost === "number"
+            ? assistantInfo.cost
+            : this.stepFinishCosts.get(messageKey) || 0;
+
+        if (this.onTokensCallback && (assistantInfo.tokens || messageCost > 0)) {
           const tokens: TokensInfo = {
-            input: assistantInfo.tokens.input,
-            output: assistantInfo.tokens.output,
-            reasoning: assistantInfo.tokens.reasoning,
-            cacheRead: assistantInfo.tokens.cache?.read || 0,
-            cacheWrite: assistantInfo.tokens.cache?.write || 0,
+            input: assistantInfo.tokens?.input || 0,
+            output: assistantInfo.tokens?.output || 0,
+            reasoning: assistantInfo.tokens?.reasoning || 0,
+            cacheRead: assistantInfo.tokens?.cache?.read || 0,
+            cacheWrite: assistantInfo.tokens?.cache?.write || 0,
+            cost: messageCost,
           };
           logger.debug(
-            `[Aggregator] Tokens: input=${tokens.input}, output=${tokens.output}, reasoning=${tokens.reasoning}`,
+            `[Aggregator] Tokens: input=${tokens.input}, output=${tokens.output}, reasoning=${tokens.reasoning}, cost=${tokens.cost}`,
           );
           // Call synchronously so keyboardManager is updated before onComplete sends the reply
           this.onTokensCallback(info.sessionID, tokens);
@@ -529,6 +550,7 @@ class SummaryAggregator {
 
         const parts = this.currentMessageParts.get(messageKey)!;
         parts.push(part.text);
+        this.emitMessageUpdated(messageKey, part.sessionID);
 
         if (this.completionTimers.has(messageKey)) {
           this.scheduleMessageCompletion(messageKey, part.sessionID);
@@ -543,6 +565,7 @@ class SummaryAggregator {
       }
     } else if (part.type === "tool") {
       const state = part.state;
+      const toolMetadata = (state as { metadata?: { [key: string]: unknown } }).metadata;
       const input = "input" in state ? (state.input as { [key: string]: unknown }) : undefined;
       const title = "title" in state ? state.title : undefined;
 
@@ -571,13 +594,41 @@ class SummaryAggregator {
         // This ensures we have access to the requestID needed for question.reply().
       }
 
-      if ("status" in state && state.status === "completed") {
+      const status = "status" in state ? state.status : undefined;
+      const shouldEmitToolUpdate =
+        status === "running" || status === "completed" || status === "error";
+
+      if (shouldEmitToolUpdate) {
+        const processedStateKey = `${part.callID}:${status}`;
+
+        if (!this.processedToolStates.has(processedStateKey)) {
+          this.processedToolStates.add(processedStateKey);
+
+          const toolData: ToolInfo = {
+            sessionId: part.sessionID,
+            messageId: messageID,
+            callId: part.callID,
+            tool: part.tool,
+            state: part.state,
+            input,
+            title,
+            metadata: toolMetadata,
+            hasFileAttachment: false,
+          };
+
+          if (this.onToolCallback) {
+            this.onToolCallback(toolData);
+          }
+        }
+      }
+
+      if (status === "completed") {
         logger.debug(
           `[Aggregator] Tool completed: callID=${part.callID}, tool=${part.tool}`,
           JSON.stringify(state, null, 2),
         );
 
-        const completedKey = `completed-${part.callID}`;
+        const completedKey = `completed-file-${part.callID}`;
 
         if (!this.processedToolStates.has(completedKey)) {
           this.processedToolStates.add(completedKey);
@@ -586,7 +637,7 @@ class SummaryAggregator {
             part.tool,
             input,
             title,
-            state.metadata as { [key: string]: unknown } | undefined,
+            toolMetadata,
           );
 
           const toolData: ToolInfo = {
@@ -597,17 +648,9 @@ class SummaryAggregator {
             state: part.state,
             input,
             title,
-            metadata: state.metadata as { [key: string]: unknown },
+            metadata: toolMetadata,
             hasFileAttachment: !!preparedFileContext.fileData,
           };
-
-          logger.debug(
-            `[Aggregator] Sending tool notification to Telegram: tool=${part.tool}, title=${title || "N/A"}`,
-          );
-
-          if (this.onToolCallback) {
-            this.onToolCallback(toolData);
-          }
 
           if (preparedFileContext.fileData && this.onToolFileCallback) {
             logger.debug(
@@ -625,6 +668,9 @@ class SummaryAggregator {
           }
         }
       }
+    } else if (part.type === "step-finish" && typeof part.cost === "number") {
+      const currentCost = this.stepFinishCosts.get(messageKey) || 0;
+      this.stepFinishCosts.set(messageKey, currentCost + part.cost);
     }
 
     this.lastUpdated = Date.now();
@@ -963,6 +1009,25 @@ class SummaryAggregator {
     this.completionTimers.delete(messageKey);
   }
 
+  private emitMessageUpdated(messageKey: string, sessionId: string): void {
+    if (!this.onMessageUpdatedCallback) {
+      return;
+    }
+
+    const parts = this.currentMessageParts.get(messageKey) || [];
+    const messageText = parts.join("");
+    if (!messageText) {
+      return;
+    }
+
+    if (this.lastStreamedMessageText.get(messageKey) === messageText) {
+      return;
+    }
+
+    this.lastStreamedMessageText.set(messageKey, messageText);
+    this.onMessageUpdatedCallback(sessionId, messageText);
+  }
+
   private scheduleMessageCompletion(messageKey: string, sessionId: string): void {
     this.clearCompletionTimer(messageKey);
 
@@ -1001,6 +1066,8 @@ class SummaryAggregator {
     this.messages.delete(messageKey);
     this.pendingParts.delete(messageKey);
     this.partHashes.delete(messageKey);
+    this.stepFinishCosts.delete(messageKey);
+    this.lastStreamedMessageText.delete(messageKey);
     this.thinkingFiredForMessages.delete(messageKey);
 
     logger.debug(
@@ -1008,7 +1075,9 @@ class SummaryAggregator {
     );
 
     if (!this.hasActiveMessageForSession(sessionId)) {
-      logger.debug(`[Aggregator] No more active messages for session ${sessionId}, stopping typing indicator`);
+      logger.debug(
+        `[Aggregator] No more active messages for session ${sessionId}, stopping typing indicator`,
+      );
       this.stopTypingIndicator(sessionId);
     }
   }

@@ -73,8 +73,9 @@ describe("summary/formatter", () => {
     expect(parts[0]).toContain("*Main heading*");
     expect(parts[0]).toContain("> This is a quote\\.");
     expect(parts[0]).toContain("> Quote continues on next line\\.");
-    expect(parts[0]).toContain("| Header 1 | Header 2 |");
-    expect(parts[0]).toContain("| Cell A | Cell B |");
+    expect(parts[0]).toContain("\\| Header 1 \\| Header 2 \\|");
+    expect(parts[0]).toContain("\\| Cell A \\| Cell B \\|");
+    expect(parts[0]).not.toContain("--- \\|");
     expect(parts[0]).not.toContain("```\nHeader 1");
     expect(parts[0]).toContain("──────────");
   });

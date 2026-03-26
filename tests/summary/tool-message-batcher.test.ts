@@ -119,6 +119,25 @@ describe("summary/tool-message-batcher", () => {
     expect(sendFile).not.toHaveBeenCalled();
   });
 
+  it("tracks pending items per session without blocking others", () => {
+    const sendText = vi.fn().mockResolvedValue(undefined);
+    const sendFile = vi.fn().mockResolvedValue(undefined);
+    const batcher = new ToolMessageBatcher({
+      intervalSeconds: 5,
+      sendText,
+      sendFile,
+    });
+
+    batcher.enqueue("s1", "one");
+
+    expect(batcher.hasPendingItems("s1")).toBe(true);
+    expect(batcher.hasPendingItems("s2")).toBe(false);
+
+    batcher.clearSession("s1", "test_clear_session");
+
+    expect(batcher.hasPendingItems("s1")).toBe(false);
+  });
+
   it("clears all queues and timers without sending", async () => {
     vi.useFakeTimers();
 

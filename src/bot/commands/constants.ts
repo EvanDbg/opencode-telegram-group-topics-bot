@@ -7,6 +7,8 @@ export const BOT_COMMAND = {
   SESSIONS: "sessions",
   LAST: "last",
   PROJECTS: "projects",
+  TASK: "task",
+  TASKLIST: "tasklist",
   RENAME: "rename",
   COMMANDS: "commands",
   OPENCODE_START: "opencode_start",

@@ -6,7 +6,7 @@ This repository is a product fork of the original single-chat project at `grinev
 
 - Upstream repo: `https://github.com/grinev/opencode-telegram-bot`
 - Upstream branch: `main`
-- Last reviewed upstream head: `a726b71` (`chore(release): v0.11.4`, 2026-03-15)
+- Last reviewed upstream head: `aecb975` (`chore(release): v0.13.2`, 2026-03-25)
 - Original fork point for this threaded fork: `21da71b` (`chore(release): v0.11.0`)
 
 ## Fork Rules
@@ -27,6 +27,8 @@ This repository is a product fork of the original single-chat project at `grinev
 - `19e0644` reviewed during sync; localized text remains compatible with this fork
 - `eb56b66` adapted port: interactive/status/setup messages now default to raw Telegram text while assistant completions still fall back safely from MarkdownV2 to plain text
 - `c72e7cb` ported: French locale support added and registered in locale validation/docs
+- `6afb300` + `6619532` ported: scoped pinned messages now show cumulative session cost
+- `f3b3fc6` + `a337370` + `54a493d` ported: `/commands` pagination, filtering, and clearer execution UX
 
 ## Upstream Changes Intentionally Adapted
 
@@ -38,11 +40,18 @@ This repository is a product fork of the original single-chat project at `grinev
 - Model reconciliation
   - Upstream validates one stored model.
   - This fork validates all scoped stored models.
+- Scheduled tasks
+  - Upstream stores and delivers scheduled tasks in a single global lane.
+  - This fork stores explicit delivery targets and creates a dedicated per-project scheduled topic in forum groups.
+- Response and tool-call streaming
+  - Upstream streams through the current single chat lane.
+  - This fork routes streamed edits by `sessionId -> topic binding`, keeping unrelated topics isolated.
 
 ## Upstream Changes Intentionally Skipped
 
 - Release-only bumps (`v0.11.1`, `v0.11.2`)
 - Release-only bumps (`v0.11.3`, `v0.11.4`)
+- Release-only bumps (`v0.12.0`, `v0.12.1`, `v0.13.0`, `v0.13.1`, `v0.13.2`)
 - Upstream docs that frame forum topics / parallel thread workflows as out of scope
 - Repo template churn that does not affect runtime behavior
 - `d392778` upstream concept docs link back to this fork; not needed in fork docs

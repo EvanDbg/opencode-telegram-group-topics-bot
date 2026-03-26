@@ -6,6 +6,7 @@ import { reconcileStoredModelSelection } from "../model/manager.js";
 import { loadSettings } from "../settings/manager.js";
 import { processManager } from "../process/manager.js";
 import { warmupSessionDirectoryCache } from "../session/cache-manager.js";
+import { createScheduledTaskRuntime } from "../scheduled-task/runtime.js";
 import { getRuntimeMode } from "../runtime/mode.js";
 import { getRuntimePaths } from "../runtime/paths.js";
 import { logger } from "../utils/logger.js";
@@ -39,6 +40,7 @@ export async function startBotApp(): Promise<void> {
   await warmupSessionDirectoryCache();
 
   const bot = createBot();
+  createScheduledTaskRuntime(bot).start();
 
   const webhookInfo = await bot.api.getWebhookInfo();
   if (webhookInfo.url) {

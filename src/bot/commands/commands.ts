@@ -16,10 +16,12 @@ import { getStoredModel } from "../../model/manager.js";
 import { safeBackgroundTask } from "../../utils/safe-background-task.js";
 import { logger } from "../../utils/logger.js";
 import { t } from "../../i18n/index.js";
+import { config } from "../../config.js";
 import { getScopeFromContext, getScopeKeyFromContext, getThreadSendOptions } from "../scope.js";
 
 const COMMANDS_CALLBACK_PREFIX = "commands:";
 const COMMANDS_CALLBACK_SELECT_PREFIX = `${COMMANDS_CALLBACK_PREFIX}select:`;
+const COMMANDS_CALLBACK_PAGE_PREFIX = `${COMMANDS_CALLBACK_PREFIX}page:`;
 const COMMANDS_CALLBACK_CANCEL = `${COMMANDS_CALLBACK_PREFIX}cancel`;
 const COMMANDS_CALLBACK_EXECUTE = `${COMMANDS_CALLBACK_PREFIX}execute`;
 const MAX_INLINE_BUTTON_LABEL_LENGTH = 64;
@@ -35,6 +37,7 @@ interface CommandsListMetadata {
   messageId: number;
   projectDirectory: string;
   commands: CommandItem[];
+  page: number;
 }
 
 interface CommandsConfirmMetadata {
@@ -58,9 +61,8 @@ export interface ExecuteCommandDeps {
 }
 
 function formatExecutingCommandMessage(commandName: string, args: string): string {
-  const commandText = `／${commandName}`;
-  const argsSuffix = args ? ` ${args}` : "";
-  return `${t("commands.executing_prefix")}\n${commandText}${argsSuffix}`;
+  const commandText = [`/${commandName}`, args].filter(Boolean).join(" ");
+  return t("commands.executing", { command: commandText });
 }
 
 function normalizeDirectoryForCommandApi(directory: string): string {
@@ -88,17 +90,125 @@ function formatCommandButtonLabel(command: CommandItem): string {
   return `${rawLabel.slice(0, MAX_INLINE_BUTTON_LABEL_LENGTH - 3)}...`;
 }
 
-function buildCommandsListKeyboard(commands: CommandItem[]): InlineKeyboard {
-  const keyboard = new InlineKeyboard();
+interface CommandsPage {
+  commands: CommandItem[];
+  page: number;
+  totalPages: number;
+  hasPrev: boolean;
+  hasNext: boolean;
+  pageSize: number;
+}
 
-  commands.forEach((command, index) => {
-    keyboard
-      .text(formatCommandButtonLabel(command), `${COMMANDS_CALLBACK_SELECT_PREFIX}${index}`)
-      .row();
+function buildCommandsPageCallback(page: number): string {
+  return `${COMMANDS_CALLBACK_PAGE_PREFIX}${page}`;
+}
+
+function getCommandsPage(commands: CommandItem[], page: number, pageSize: number): CommandsPage {
+  const safePageSize = Math.max(1, pageSize);
+  const totalPages = Math.max(1, Math.ceil(commands.length / safePageSize));
+  const normalizedPage = Math.min(Math.max(0, page), totalPages - 1);
+  const startIndex = normalizedPage * safePageSize;
+
+  return {
+    commands: commands.slice(startIndex, startIndex + safePageSize),
+    page: normalizedPage,
+    totalPages,
+    hasPrev: normalizedPage > 0,
+    hasNext: normalizedPage < totalPages - 1,
+    pageSize: safePageSize,
+  };
+}
+
+function formatCommandsSelectText(pageData: CommandsPage): string {
+  if (pageData.totalPages <= 1) {
+    return t("commands.select");
+  }
+
+  return t("commands.select_page", {
+    current: pageData.page + 1,
+    total: pageData.totalPages,
   });
+}
+
+function buildCommandsListKeyboard(
+  commands: CommandItem[],
+  page: number,
+  pageSize: number,
+): InlineKeyboard {
+  const keyboard = new InlineKeyboard();
+  const pageData = getCommandsPage(commands, page, pageSize);
+  const pageStartIndex = pageData.page * pageData.pageSize;
+
+  pageData.commands.forEach((command, index) => {
+    const absoluteIndex = pageStartIndex + index;
+    const label = `${absoluteIndex + 1}. ${formatCommandButtonLabel(command)}`;
+    keyboard.text(label, `${COMMANDS_CALLBACK_SELECT_PREFIX}${absoluteIndex}`).row();
+  });
+
+  if (pageData.hasPrev) {
+    keyboard.text(t("commands.button.prev_page"), buildCommandsPageCallback(pageData.page - 1));
+  }
+
+  if (pageData.hasNext) {
+    keyboard.text(t("commands.button.next_page"), buildCommandsPageCallback(pageData.page + 1));
+  }
+
+  if (pageData.hasPrev || pageData.hasNext) {
+    keyboard.row();
+  }
 
   keyboard.text(t("commands.button.cancel"), COMMANDS_CALLBACK_CANCEL);
   return keyboard;
+}
+
+function normalizeCommandListMetadataValue(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function shouldHideCommandListItem(item: { source?: unknown; type?: unknown }): boolean {
+  const source = normalizeCommandListMetadataValue(item.source);
+  const type = normalizeCommandListMetadataValue(item.type);
+
+  if (source === "skill" || type === "skill") {
+    return true;
+  }
+
+  if (
+    source === "mcp-prompt" ||
+    source === "mcp_prompt" ||
+    source === "mcp prompt" ||
+    type === "mcp-prompt" ||
+    type === "mcp_prompt" ||
+    type === "mcp prompt"
+  ) {
+    return true;
+  }
+
+  return source === "mcp" && type === "prompt";
+}
+
+function parsePageNumber(data: string): number | null {
+  if (!data.startsWith(COMMANDS_CALLBACK_PAGE_PREFIX)) {
+    return null;
+  }
+
+  const rawPage = data.slice(COMMANDS_CALLBACK_PAGE_PREFIX.length);
+  const page = Number(rawPage);
+
+  if (!Number.isInteger(page) || page < 0) {
+    return null;
+  }
+
+  return page;
+}
+
+function buildCommandsMessageText(commands: CommandItem[], page: number, pageSize: number): string {
+  return formatCommandsSelectText(getCommandsPage(commands, page, pageSize));
 }
 
 function buildCommandsConfirmKeyboard(): InlineKeyboard {
@@ -163,6 +273,7 @@ function parseCommandsMetadata(state: InteractionState | null): CommandsMetadata
       messageId,
       projectDirectory,
       commands,
+      page: typeof state.metadata.page === "number" ? state.metadata.page : 0,
     };
   }
 
@@ -201,6 +312,9 @@ async function getCommandList(projectDirectory: string): Promise<CommandItem[]> 
   }
 
   return data
+    .filter(
+      (command) => !shouldHideCommandListItem(command as { source?: unknown; type?: unknown }),
+    )
     .filter((command) => typeof command.name === "string" && command.name.trim().length > 0)
     .map((command) => ({
       name: command.name,
@@ -285,7 +399,10 @@ async function ensureSessionForProject(
   setCurrentSession(sessionInfo, scopeKey);
   summaryAggregator.setSession(sessionInfo.id);
   await ingestSessionInfoForCache(session);
-  await ctx.reply(t("bot.session_created", { title: session.title }), getThreadSendOptions(threadId));
+  await ctx.reply(
+    t("bot.session_created", { title: session.title }),
+    getThreadSendOptions(threadId),
+  );
 
   return sessionInfo;
 }
@@ -301,7 +418,10 @@ async function executeCommand(
 
   const args = params.argumentsText.trim();
   const threadId = getScopeFromContext(ctx)?.threadId ?? null;
-  await ctx.reply(formatExecutingCommandMessage(params.commandName, args), getThreadSendOptions(threadId));
+  await ctx.reply(
+    formatExecutingCommandMessage(params.commandName, args),
+    getThreadSendOptions(threadId),
+  );
 
   const session = await ensureSessionForProject(ctx, params.projectDirectory);
   if (!session) {
@@ -384,8 +504,10 @@ export async function commandsCommand(ctx: CommandContext<Context>): Promise<voi
       return;
     }
 
-    const keyboard = buildCommandsListKeyboard(commands);
-    const message = await ctx.reply(t("commands.select"), {
+    const page = 0;
+    const pageSize = config.bot.commandsListLimit;
+    const keyboard = buildCommandsListKeyboard(commands, page, pageSize);
+    const message = await ctx.reply(buildCommandsMessageText(commands, page, pageSize), {
       reply_markup: keyboard,
     });
 
@@ -399,6 +521,7 @@ export async function commandsCommand(ctx: CommandContext<Context>): Promise<voi
           messageId: message.message_id,
           projectDirectory: currentProject.worktree,
           commands,
+          page,
         },
       },
       scopeKey,
@@ -450,6 +573,34 @@ export async function handleCommandsCallback(
         commandName: metadata.commandName,
         argumentsText: "",
       });
+      return true;
+    }
+
+    const page = parsePageNumber(data);
+    if (page !== null) {
+      if (metadata.stage !== "list") {
+        await ctx.answerCallbackQuery({ text: t("commands.inactive_callback"), show_alert: true });
+        return true;
+      }
+
+      const pageSize = config.bot.commandsListLimit;
+      const pageData = getCommandsPage(metadata.commands, page, pageSize);
+
+      await ctx.editMessageText(formatCommandsSelectText(pageData), {
+        reply_markup: buildCommandsListKeyboard(metadata.commands, pageData.page, pageSize),
+      });
+      await ctx.answerCallbackQuery();
+
+      interactionManager.transition(
+        {
+          metadata: {
+            ...metadata,
+            page: pageData.page,
+          },
+        },
+        scopeKey,
+      );
+
       return true;
     }
 

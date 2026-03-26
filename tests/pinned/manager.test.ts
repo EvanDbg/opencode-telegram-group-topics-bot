@@ -6,27 +6,22 @@ import {
   setCurrentModel,
 } from "../../src/settings/manager.js";
 
+const opencodeMocks = vi.hoisted(() => ({
+  providers: vi.fn(),
+  diff: vi.fn(),
+  get: vi.fn(),
+  messages: vi.fn(),
+}));
+
 vi.mock("../../src/opencode/client.js", () => ({
   opencodeClient: {
     config: {
-      providers: vi.fn().mockResolvedValue({
-        data: {
-          providers: [
-            {
-              id: "openai",
-              models: {
-                "gpt-5": { limit: { context: 400000 } },
-              },
-            },
-          ],
-        },
-        error: null,
-      }),
+      providers: opencodeMocks.providers,
     },
     session: {
-      diff: vi.fn().mockResolvedValue({ data: [], error: null }),
-      get: vi.fn().mockResolvedValue({ data: null, error: null }),
-      messages: vi.fn().mockResolvedValue({ data: [], error: null }),
+      diff: opencodeMocks.diff,
+      get: opencodeMocks.get,
+      messages: opencodeMocks.messages,
     },
   },
 }));
@@ -46,6 +41,26 @@ describe("pinned manager scoped state", () => {
   beforeEach(() => {
     __resetSettingsForTests();
     (pinnedMessageManager as unknown as { contexts: Map<string, unknown> }).contexts = new Map();
+    opencodeMocks.providers.mockReset();
+    opencodeMocks.diff.mockReset();
+    opencodeMocks.get.mockReset();
+    opencodeMocks.messages.mockReset();
+    opencodeMocks.providers.mockResolvedValue({
+      data: {
+        providers: [
+          {
+            id: "openai",
+            models: {
+              "gpt-5": { limit: { context: 400000 } },
+            },
+          },
+        ],
+      },
+      error: null,
+    });
+    opencodeMocks.diff.mockResolvedValue({ data: [], error: null });
+    opencodeMocks.get.mockResolvedValue({ data: null, error: null });
+    opencodeMocks.messages.mockResolvedValue({ data: [], error: null });
   });
 
   it("creates separate pinned messages for different thread scopes", async () => {
@@ -96,6 +111,53 @@ describe("pinned manager scoped state", () => {
       -1,
       expect.any(String),
       expect.objectContaining({ message_thread_id: 77 }),
+    );
+  });
+
+  it("loads assistant cost from history into the scoped pinned message", async () => {
+    const api = createApi();
+
+    setCurrentProject({ id: "p1", worktree: "/repo/a" }, "chat:-1:10");
+    setCurrentModel({ providerID: "openai", modelID: "gpt-5", variant: "default" }, "chat:-1:10");
+    opencodeMocks.messages.mockResolvedValue({
+      data: [
+        {
+          info: {
+            role: "assistant",
+            cost: 0.01234,
+            tokens: { input: 1200, cache: { read: 300 } },
+          },
+        },
+        {
+          info: {
+            role: "assistant",
+            cost: 0.00056,
+            tokens: { input: 900, cache: { read: 25 } },
+          },
+        },
+      ],
+      error: null,
+    });
+
+    pinnedMessageManager.initialize(api as never, -1, "chat:-1:10", 10);
+    await pinnedMessageManager.onSessionChange("s1", "thread 10", "chat:-1:10");
+
+    expect(api.sendMessage).toHaveBeenCalledWith(
+      -1,
+      expect.stringContaining("Cost: $0.00"),
+      expect.objectContaining({ message_thread_id: 10 }),
+    );
+    expect(api.editMessageText).toHaveBeenCalledWith(
+      -1,
+      100,
+      expect.stringContaining("Cost: $0.013"),
+    );
+
+    expect(pinnedMessageManager.getState("chat:-1:10")).toEqual(
+      expect.objectContaining({
+        assistantCost: 0.0129,
+        tokensUsed: 1500,
+      }),
     );
   });
 });

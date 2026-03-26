@@ -28,6 +28,8 @@ const COMMAND_DEFINITIONS: BotCommandI18nDefinition[] = [
   { command: BOT_COMMAND.SESSIONS, descriptionKey: "cmd.description.sessions" },
   { command: BOT_COMMAND.LAST, descriptionKey: "cmd.description.last" },
   { command: BOT_COMMAND.PROJECTS, descriptionKey: "cmd.description.projects" },
+  { command: BOT_COMMAND.TASK, descriptionKey: "cmd.description.task" },
+  { command: BOT_COMMAND.TASKLIST, descriptionKey: "cmd.description.tasklist" },
   { command: BOT_COMMAND.RENAME, descriptionKey: "cmd.description.rename" },
   { command: BOT_COMMAND.COMMANDS, descriptionKey: "cmd.description.commands" },
   { command: BOT_COMMAND.OPENCODE_START, descriptionKey: "cmd.description.opencode_start" },
@@ -44,7 +46,9 @@ export function getLocalizedBotCommands(): BotCommandDefinition[] {
 
 export function getLocalizedDmBotCommands(): BotCommandDefinition[] {
   const allowedCommands = new Set<string>(DM_ALLOWED_COMMANDS);
-  const commands = getLocalizedBotCommands().filter((command) => allowedCommands.has(command.command));
+  const commands = getLocalizedBotCommands().filter((command) =>
+    allowedCommands.has(command.command),
+  );
 
   return [
     {

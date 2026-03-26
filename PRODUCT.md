@@ -101,6 +101,8 @@ Current command set:
 - [x] `/projects` - show and switch projects
 - [x] `/rename` - rename current session
 - [x] `/commands` - browse and run custom commands (plus built-ins like `init` and `review`)
+- [x] `/task` - create a scheduled task for the current project
+- [x] `/tasklist` - list and delete scheduled tasks for the current project
 - [x] `/opencode_start` - start local OpenCode server
 - [x] `/opencode_stop` - stop local OpenCode server
 - [x] `/help` - show command help
@@ -111,7 +113,7 @@ Text messages (non-commands) are treated as prompts for OpenCode only when no bl
 
 Interaction routing rules:
 
-- Only one interactive flow can be active at a time (inline menu, permission, question, rename, commands)
+- Only one interactive flow can be active at a time (inline menu, permission, question, rename, commands, scheduled task creation)
 - While an interaction is active, unrelated input is blocked with a contextual hint
 - Allowed utility commands during active interactions: `/help`, `/status`, `/abort`
 - Unknown slash commands return an explicit fallback message
@@ -131,11 +133,14 @@ Model picker behavior:
 - [x] Session management (list/switch/create) with inline menus
 - [x] Group-threaded workflow with General control topic plus per-session forum topics
 - [x] Prompt execution through OpenCode with SSE-based event handling
+- [x] Live assistant response streaming with thread-aware Telegram edits and fallback completion delivery
 - [x] Interactive question and permission flows (buttons + custom text answers)
 - [x] Single-active interaction routing with contextual blocking and cleanup recovery
 - [x] Pinned status updates (session, project, model, context usage, changed files)
+- [x] Session cost tracking in scoped pinned messages
 - [x] Model and agent selection from Telegram (favorites first, recent next, no duplicates)
 - [x] Context/variant controls from Telegram keyboard
+- [x] Scheduled tasks with dedicated per-project scheduled topics in forum groups
 - [x] Sending code blocks as files when needed
 - [x] Configurable batching of service messages (thinking + tool updates): recommended `>=2` sec for Telegram rate limits; `0` = immediate
 - [x] Configurable service message visibility via env flags (`HIDE_THINKING_MESSAGES`, `HIDE_TOOL_CALL_MESSAGES`)
@@ -156,6 +161,7 @@ Open tasks for upcoming iterations:
 - [x] Support sending photos from Telegram to OpenCode (screenshots, images)
 - [x] Support sending PDF documents from Telegram to OpenCode
 - [x] Support sending text files from Telegram to OpenCode (code, configs, etc.)
+- [x] Add scheduled tasks
 - [ ] Provide a Docker image and basic container deployment guide
 - [x] Add voice transcription
 

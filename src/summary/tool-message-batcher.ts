@@ -85,6 +85,11 @@ export class ToolMessageBatcher {
     return this.intervalSeconds;
   }
 
+  hasPendingItems(sessionId: string): boolean {
+    const queuedItems = this.queues.get(sessionId);
+    return Array.isArray(queuedItems) && queuedItems.length > 0;
+  }
+
   enqueue(sessionId: string, message: string): void {
     this.enqueueTextInternal(sessionId, message);
   }

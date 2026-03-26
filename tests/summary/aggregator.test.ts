@@ -25,6 +25,7 @@ describe("summary/aggregator", () => {
     summaryAggregator.setOnCleared(() => {});
     summaryAggregator.setOnTool(() => {});
     summaryAggregator.setOnToolFile(() => {});
+    summaryAggregator.setOnMessageUpdated(() => {});
     summaryAggregator.setOnThinking(() => {});
     summaryAggregator.setOnSessionIdle(() => {});
     summaryAggregator.setOnSessionError(() => {});
@@ -85,7 +86,125 @@ describe("summary/aggregator", () => {
         callId: "call-1",
         tool: "bash",
         hasFileAttachment: false,
+        state: expect.objectContaining({ status: "completed" }),
       }),
+    );
+  });
+
+  it("streams assistant text snapshots while a message is in progress", () => {
+    const onMessageUpdated = vi.fn();
+    summaryAggregator.setOnMessageUpdated(onMessageUpdated);
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-stream",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "part-stream-1",
+          sessionID: "session-1",
+          messageID: "message-stream",
+          type: "text",
+          text: "Hello",
+          time: { start: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "part-stream-2",
+          sessionID: "session-1",
+          messageID: "message-stream",
+          type: "text",
+          text: " world",
+          time: { start: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    expect(onMessageUpdated.mock.calls).toEqual([
+      ["session-1", "Hello"],
+      ["session-1", "Hello world"],
+    ]);
+  });
+
+  it("emits tool updates for running and error states once each", () => {
+    const onTool = vi.fn();
+    summaryAggregator.setOnTool(onTool);
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-tool-states",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    const runningEvent = {
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "part-tool-running",
+          sessionID: "session-1",
+          messageID: "message-tool-states",
+          type: "tool",
+          callID: "call-tool-states",
+          tool: "bash",
+          state: {
+            status: "running",
+            input: { command: "npm test" },
+            metadata: {},
+          },
+        },
+      },
+    } as unknown as Event;
+
+    summaryAggregator.processEvent(runningEvent);
+    summaryAggregator.processEvent(runningEvent);
+    summaryAggregator.processEvent({
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "part-tool-error",
+          sessionID: "session-1",
+          messageID: "message-tool-states",
+          type: "tool",
+          callID: "call-tool-states",
+          tool: "bash",
+          state: {
+            status: "error",
+            input: { command: "npm test" },
+            metadata: {},
+          },
+        },
+      },
+    } as unknown as Event);
+
+    expect(onTool).toHaveBeenCalledTimes(2);
+    expect(onTool.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ state: expect.objectContaining({ status: "running" }) }),
+    );
+    expect(onTool.mock.calls[1][0]).toEqual(
+      expect.objectContaining({ state: expect.objectContaining({ status: "error" }) }),
     );
   });
 
@@ -273,6 +392,101 @@ describe("summary/aggregator", () => {
     await new Promise<void>((resolve) => setImmediate(resolve));
 
     expect(onSessionError).toHaveBeenCalledWith("session-1", "Model not found: opencode/foo.");
+  });
+
+  it("reports assistant cost with completed message tokens", () => {
+    const onTokens = vi.fn();
+    summaryAggregator.setOnTokens(onTokens);
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-cost",
+          sessionID: "session-1",
+          role: "assistant",
+          cost: 0.01234,
+          tokens: {
+            input: 123,
+            output: 45,
+            reasoning: 6,
+            cache: { read: 7, write: 8 },
+          },
+          time: { created: Date.now(), completed: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    expect(onTokens).toHaveBeenCalledWith(
+      "session-1",
+      expect.objectContaining({
+        input: 123,
+        output: 45,
+        reasoning: 6,
+        cacheRead: 7,
+        cacheWrite: 8,
+        cost: 0.01234,
+      }),
+    );
+  });
+
+  it("falls back to step-finish cost when message summary cost is missing", () => {
+    const onTokens = vi.fn();
+    summaryAggregator.setOnTokens(onTokens);
+    summaryAggregator.setSession("session-1");
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-step-cost",
+          sessionID: "session-1",
+          role: "assistant",
+          time: { created: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.part.updated",
+      properties: {
+        part: {
+          id: "part-step-finish",
+          sessionID: "session-1",
+          messageID: "message-step-cost",
+          type: "step-finish",
+          reason: "done",
+          cost: 0.0042,
+          tokens: {
+            input: 10,
+            output: 11,
+            reasoning: 12,
+            cache: { read: 13, write: 14 },
+          },
+        },
+      },
+    } as unknown as Event);
+
+    summaryAggregator.processEvent({
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "message-step-cost",
+          sessionID: "session-1",
+          role: "assistant",
+          tokens: {
+            input: 123,
+            output: 45,
+            reasoning: 6,
+            cache: { read: 7, write: 8 },
+          },
+          time: { created: Date.now(), completed: Date.now() },
+        },
+      },
+    } as unknown as Event);
+
+    expect(onTokens).toHaveBeenCalledWith("session-1", expect.objectContaining({ cost: 0.0042 }));
   });
 
   it("emits the full assistant message across all text parts", async () => {

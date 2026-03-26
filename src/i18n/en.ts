@@ -6,6 +6,8 @@ export const en = {
   "cmd.description.sessions": "List sessions",
   "cmd.description.last": "Show latest session message",
   "cmd.description.projects": "List projects",
+  "cmd.description.task": "Create a scheduled task",
+  "cmd.description.tasklist": "List scheduled tasks",
   "cmd.description.commands": "Custom commands",
   "cmd.description.model": "Select model",
   "cmd.description.agent": "Select agent mode",
@@ -194,6 +196,35 @@ export const en = {
   "new.create_error":
     "🔴 OpenCode Server is unavailable or an error occurred while creating session.",
 
+  "task.project_not_selected":
+    "🏗 Project is not selected.\n\nFirst select a project with /projects.",
+  "task.schedule_prompt":
+    "Send the schedule for this task. Examples: `every weekday at 09:00` or `tomorrow at 18:30`.",
+  "task.schedule_parsing":
+    "⏳ Still parsing the schedule. Wait for the preview before sending more text.",
+  "task.schedule_preview":
+    "Schedule parsed.\n\nSummary: {summary}\nNext run: {nextRunAt}\n\nNow send the prompt that should run on that schedule.",
+  "task.prompt_prompt": "Send the prompt for this scheduled task.",
+  "task.schedule_error":
+    "⚠️ I could not parse that schedule: {message}\n\nSend a clearer schedule description.",
+  "task.created": "✅ Scheduled task created.\n\nSchedule: {summary}\nNext run: {nextRunAt}",
+  "task.created_topic_link": "🔗 Scheduled runs will be posted here: {url}",
+  "task.create_error": "🔴 Failed to create the scheduled task.",
+  "task.blocked.expected_text":
+    "⚠️ Finish the scheduled task setup first by sending the requested text, or use /abort to cancel.",
+  "task.blocked.command_not_allowed":
+    "⚠️ This command is not available while scheduled task setup is active.",
+  "task.list.title": "Scheduled tasks:",
+  "task.list.empty": "📭 No scheduled tasks for this project in this chat.",
+  "task.list.none": "not scheduled",
+  "task.list.next_run": "Next run: {value}",
+  "task.list.status": "Status: {value}",
+  "task.list.prompt": "Prompt: {value}",
+  "task.list.delete_button": "Delete #{index}",
+  "task.list.deleted": "Scheduled task deleted",
+  "task.list.delete_missing": "Scheduled task not found",
+  "task.list.delete_error": "Failed to delete scheduled task",
+
   "cleanup.topic_use_general": "⚠️ Run /cleanup from the General topic.",
   "cleanup.requires_forum_general":
     "⚠️ /cleanup is available only in the General topic of a forum-enabled supergroup.",
@@ -349,6 +380,7 @@ export const en = {
   "pinned.line.project": "Project: {project}",
   "pinned.line.model": "Model: {model}",
   "pinned.line.context": "Context: {used} / {limit} ({percent}%)",
+  "pinned.line.cost": "Cost: {cost}",
   "pinned.files.title": "Files ({count}):",
   "pinned.files.item": "  {path}{diff}",
   "pinned.files.more": "  ... and {count} more",
@@ -403,14 +435,17 @@ export const en = {
   "commands.empty": "📭 No OpenCode commands are available for this project.",
   "commands.fetch_error": "🔴 Failed to load OpenCode commands.",
   "commands.no_description": "No description",
+  "commands.select_page": "Choose an OpenCode command ({current}/{total}):",
   "commands.button.execute": "✅ Execute",
+  "commands.button.prev_page": "⬅️ Prev",
+  "commands.button.next_page": "Next ➡️",
   "commands.button.cancel": "❌ Cancel",
   "commands.confirm":
-    "Confirm execution of command {command}. To run it with arguments, send the arguments as a message.",
+    "Run {command}? Send a text reply to pass arguments, or tap Execute to run it as-is.",
   "commands.inactive_callback": "This command menu is inactive",
   "commands.cancelled_callback": "Cancelled",
   "commands.execute_callback": "Executing command...",
-  "commands.executing_prefix": "⚡ Executing command:",
+  "commands.executing": "⚡ Starting OpenCode command\n{command}",
   "commands.arguments_empty": "⚠️ Arguments cannot be empty. Send text or tap Execute.",
   "commands.execute_error": "🔴 Failed to execute OpenCode command.",
 

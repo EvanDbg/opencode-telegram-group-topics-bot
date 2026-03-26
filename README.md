@@ -141,6 +141,8 @@ If that works, your group workspace is ready.
 | `/projects`       | Switch between OpenCode projects                        |
 | `/rename`         | Rename the current session                              |
 | `/commands`       | Browse and run custom commands                          |
+| `/task`           | Create a scheduled task for the current project         |
+| `/tasklist`       | List and delete scheduled tasks for the current project |
 | `/opencode_start` | Start the OpenCode server remotely                      |
 | `/opencode_stop`  | Stop the OpenCode server remotely                       |
 | `/help`           | Show available commands                                 |
@@ -174,29 +176,31 @@ Installed-mode config paths:
 
 ### Environment Variables
 
-| Variable                        | Description                                                                          | Required | Default                  |
-| ------------------------------- | ------------------------------------------------------------------------------------ | :------: | ------------------------ |
-| `TELEGRAM_BOT_TOKEN`            | Bot token from @BotFather                                                            |   Yes    | -                        |
-| `TELEGRAM_ALLOWED_USER_ID`      | Your numeric Telegram user ID                                                        |   Yes    | -                        |
-| `TELEGRAM_PROXY_URL`            | Proxy URL for Telegram API (SOCKS5/HTTP)                                             |    No    | -                        |
-| `OPENCODE_API_URL`              | OpenCode server URL                                                                  |    No    | `http://localhost:4096`  |
-| `OPENCODE_SERVER_USERNAME`      | Server auth username                                                                 |    No    | `opencode`               |
-| `OPENCODE_SERVER_PASSWORD`      | Server auth password                                                                 |    No    | -                        |
-| `OPENCODE_MODEL_PROVIDER`       | Default model provider                                                               |   Yes    | `opencode`               |
-| `OPENCODE_MODEL_ID`             | Default model ID                                                                     |   Yes    | `big-pickle`             |
-| `BOT_LOCALE`                    | Bot UI language (`en`, `de`, `es`, `fr`, `ru`, `zh`)                                 |    No    | `en`                     |
-| `SESSIONS_LIST_LIMIT`           | Sessions per page in `/sessions`                                                     |    No    | `10`                     |
-| `PROJECTS_LIST_LIMIT`           | Projects per page in `/projects`                                                     |    No    | `10`                     |
-| `SERVICE_MESSAGES_INTERVAL_SEC` | Service messages interval; keep `>=2` to avoid Telegram rate limits, `0` = immediate |    No    | `5`                      |
-| `HIDE_THINKING_MESSAGES`        | Hide `Thinking...` service messages                                                  |    No    | `false`                  |
-| `HIDE_TOOL_CALL_MESSAGES`       | Hide tool-call service messages                                                      |    No    | `false`                  |
-| `MESSAGE_FORMAT_MODE`           | Assistant reply formatting mode: `markdown` or `raw`                                 |    No    | `markdown`               |
-| `CODE_FILE_MAX_SIZE_KB`         | Max file size (KB) to send as a document                                             |    No    | `100`                    |
-| `STT_API_URL`                   | Whisper-compatible API base URL                                                      |    No    | -                        |
-| `STT_API_KEY`                   | API key for your STT provider                                                        |    No    | -                        |
-| `STT_MODEL`                     | STT model name passed to `/audio/transcriptions`                                     |    No    | `whisper-large-v3-turbo` |
-| `STT_LANGUAGE`                  | Optional language hint                                                               |    No    | -                        |
-| `LOG_LEVEL`                     | Log level (`debug`, `info`, `warn`, `error`)                                         |    No    | `info`                   |
+| Variable                           | Description                                                                          | Required | Default                  |
+| ---------------------------------- | ------------------------------------------------------------------------------------ | :------: | ------------------------ |
+| `TELEGRAM_BOT_TOKEN`               | Bot token from @BotFather                                                            |   Yes    | -                        |
+| `TELEGRAM_ALLOWED_USER_ID`         | Your numeric Telegram user ID                                                        |   Yes    | -                        |
+| `TELEGRAM_PROXY_URL`               | Proxy URL for Telegram API (SOCKS5/HTTP)                                             |    No    | -                        |
+| `OPENCODE_API_URL`                 | OpenCode server URL                                                                  |    No    | `http://localhost:4096`  |
+| `OPENCODE_SERVER_USERNAME`         | Server auth username                                                                 |    No    | `opencode`               |
+| `OPENCODE_SERVER_PASSWORD`         | Server auth password                                                                 |    No    | -                        |
+| `OPENCODE_MODEL_PROVIDER`          | Default model provider                                                               |   Yes    | `opencode`               |
+| `OPENCODE_MODEL_ID`                | Default model ID                                                                     |   Yes    | `big-pickle`             |
+| `BOT_LOCALE`                       | Bot UI language (`en`, `de`, `es`, `fr`, `ru`, `zh`)                                 |    No    | `en`                     |
+| `SESSIONS_LIST_LIMIT`              | Sessions per page in `/sessions`                                                     |    No    | `10`                     |
+| `PROJECTS_LIST_LIMIT`              | Projects per page in `/projects`                                                     |    No    | `10`                     |
+| `COMMANDS_LIST_LIMIT`              | Commands per page in `/commands`                                                     |    No    | `10`                     |
+| `SCHEDULED_TASK_POLL_INTERVAL_SEC` | Scheduled task poll interval in seconds                                              |    No    | `30`                     |
+| `SERVICE_MESSAGES_INTERVAL_SEC`    | Service messages interval; keep `>=2` to avoid Telegram rate limits, `0` = immediate |    No    | `5`                      |
+| `HIDE_THINKING_MESSAGES`           | Hide `Thinking...` service messages                                                  |    No    | `false`                  |
+| `HIDE_TOOL_CALL_MESSAGES`          | Hide tool-call service messages                                                      |    No    | `false`                  |
+| `MESSAGE_FORMAT_MODE`              | Assistant reply formatting mode: `markdown` or `raw`                                 |    No    | `markdown`               |
+| `CODE_FILE_MAX_SIZE_KB`            | Max file size (KB) to send as a document                                             |    No    | `100`                    |
+| `STT_API_URL`                      | Whisper-compatible API base URL                                                      |    No    | -                        |
+| `STT_API_KEY`                      | API key for your STT provider                                                        |    No    | -                        |
+| `STT_MODEL`                        | STT model name passed to `/audio/transcriptions`                                     |    No    | `whisper-large-v3-turbo` |
+| `STT_LANGUAGE`                     | Optional language hint                                                               |    No    | -                        |
+| `LOG_LEVEL`                        | Log level (`debug`, `info`, `warn`, `error`)                                         |    No    | `info`                   |
 
 Keep your `.env` private. It contains your bot token.
 
@@ -221,7 +225,9 @@ To add favorites, open the OpenCode TUI and press `Cmd+F` / `Ctrl+F` on a model.
 ## Features
 
 - Thread-scoped OpenCode sessions inside Telegram forum topics
+- Scheduled tasks with a dedicated per-project scheduled topic in forum groups
 - Pinned live status messages per topic
+- Live assistant response streaming and streamed tool-call updates
 - Model, agent, variant, and context controls from the keyboard
 - Custom OpenCode command execution
 - Interactive permission and question handling

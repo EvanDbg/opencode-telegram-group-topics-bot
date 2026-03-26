@@ -8,6 +8,8 @@ export const de: I18nDictionary = {
   "cmd.description.sessions": "Sitzungen auflisten",
   "cmd.description.last": "Neueste Sitzungsnachricht anzeigen",
   "cmd.description.projects": "Projekte auflisten",
+  "cmd.description.task": "Geplante Aufgabe erstellen",
+  "cmd.description.tasklist": "Geplante Aufgaben anzeigen",
   "cmd.description.commands": "Benutzerdefinierte Befehle",
   "cmd.description.model": "Modell auswählen",
   "cmd.description.agent": "Agent-Modus auswählen",
@@ -184,6 +186,35 @@ export const de: I18nDictionary = {
   "new.create_error":
     "🔴 OpenCode-Server ist nicht verfügbar oder beim Erstellen der Sitzung ist ein Fehler aufgetreten.",
 
+  "task.project_not_selected":
+    "🏗 Projekt ist nicht ausgewählt.\n\nWähle zuerst ein Projekt mit /projects.",
+  "task.schedule_prompt":
+    "Sende den Zeitplan für diese Aufgabe. Beispiele: `jeden Werktag um 09:00` oder `morgen um 18:30`.",
+  "task.schedule_parsing": "⏳ Der Zeitplan wird noch analysiert. Warte auf die Vorschau.",
+  "task.schedule_preview":
+    "Zeitplan erkannt.\n\nZusammenfassung: {summary}\nNächster Lauf: {nextRunAt}\n\nSende jetzt den Prompt für diese geplante Aufgabe.",
+  "task.prompt_prompt": "Sende den Prompt für diese geplante Aufgabe.",
+  "task.schedule_error":
+    "⚠️ Dieser Zeitplan konnte nicht verstanden werden: {message}\n\nSende eine klarere Beschreibung.",
+  "task.created":
+    "✅ Geplante Aufgabe erstellt.\n\nZeitplan: {summary}\nNächster Lauf: {nextRunAt}",
+  "task.created_topic_link": "🔗 Geplante Ausführungen werden hier gesendet: {url}",
+  "task.create_error": "🔴 Die geplante Aufgabe konnte nicht erstellt werden.",
+  "task.blocked.expected_text":
+    "⚠️ Schließe zuerst die Einrichtung der geplanten Aufgabe ab oder nutze /abort zum Abbrechen.",
+  "task.blocked.command_not_allowed":
+    "⚠️ Dieser Befehl ist während der Einrichtung einer geplanten Aufgabe nicht verfügbar.",
+  "task.list.title": "Geplante Aufgaben:",
+  "task.list.empty": "📭 Keine geplanten Aufgaben für dieses Projekt in diesem Chat.",
+  "task.list.none": "nicht geplant",
+  "task.list.next_run": "Nächster Lauf: {value}",
+  "task.list.status": "Status: {value}",
+  "task.list.prompt": "Prompt: {value}",
+  "task.list.delete_button": "Löschen #{index}",
+  "task.list.deleted": "Geplante Aufgabe gelöscht",
+  "task.list.delete_missing": "Geplante Aufgabe nicht gefunden",
+  "task.list.delete_error": "Geplante Aufgabe konnte nicht gelöscht werden",
+
   "cleanup.topic_use_general": "⚠️ Führe /cleanup im General-Thema aus.",
   "cleanup.requires_forum_general":
     "⚠️ /cleanup ist nur im General-Thema einer forum-fähigen Supergruppe verfügbar.",
@@ -344,6 +375,7 @@ export const de: I18nDictionary = {
   "pinned.line.project": "Projekt: {project}",
   "pinned.line.model": "Modell: {model}",
   "pinned.line.context": "Kontext: {used} / {limit} ({percent}%)",
+  "pinned.line.cost": "Kosten: {cost}",
   "pinned.files.title": "Dateien ({count}):",
   "pinned.files.item": "  {path}{diff}",
   "pinned.files.more": "  ... und {count} mehr",
@@ -399,14 +431,17 @@ export const de: I18nDictionary = {
   "commands.empty": "📭 Für dieses Projekt sind keine OpenCode-Befehle verfügbar.",
   "commands.fetch_error": "🔴 OpenCode-Befehle konnten nicht geladen werden.",
   "commands.no_description": "Keine Beschreibung",
+  "commands.select_page": "Wähle einen OpenCode-Befehl ({current}/{total}):",
   "commands.button.execute": "✅ Ausführen",
+  "commands.button.prev_page": "⬅️ Zurück",
+  "commands.button.next_page": "Weiter ➡️",
   "commands.button.cancel": "❌ Abbrechen",
   "commands.confirm":
-    "Bestätige die Ausführung des Befehls {command}. Für die Ausführung mit Argumenten sende die Argumente als Nachricht.",
+    "{command} ausführen? Sende eine Textantwort für Argumente oder tippe auf Ausführen, um den Befehl direkt zu starten.",
   "commands.inactive_callback": "Dieses Befehlsmenü ist inaktiv",
   "commands.cancelled_callback": "Abgebrochen",
   "commands.execute_callback": "Befehl wird ausgeführt...",
-  "commands.executing_prefix": "⚡ Befehl wird ausgeführt:",
+  "commands.executing": "⚡ OpenCode-Befehl wird gestartet\n{command}",
   "commands.arguments_empty":
     "⚠️ Argumente dürfen nicht leer sein. Sende Text oder tippe auf Ausführen.",
   "commands.execute_error": "🔴 OpenCode-Befehl konnte nicht ausgeführt werden.",

@@ -1,4 +1,10 @@
 import type { ModelInfo } from "../model/types.js";
+import type {
+  ScheduledTask,
+  ScheduledTaskDeliveryTarget,
+  ScheduledTaskModel,
+  ScheduledTaskTopicBinding,
+} from "../scheduled-task/types.js";
 import path from "node:path";
 import {
   GLOBAL_SCOPE_KEY,
@@ -81,6 +87,8 @@ export interface Settings {
   global?: ScopeState;
   dmScopes?: Record<string, ScopeState>;
   groups?: Record<string, GroupSettings>;
+  scheduledTasks?: ScheduledTask[];
+  scheduledTaskTopics?: ScheduledTaskTopicBinding[];
   serverProcess?: ServerProcessInfo;
   sessionDirectoryCache?: SessionDirectoryCacheInfo;
 }
@@ -144,6 +152,30 @@ function cloneSessionInfo(session: SessionInfo): SessionInfo {
 
 function cloneModelInfo(model: ModelInfo): ModelInfo {
   return { ...model };
+}
+
+function cloneScheduledTaskModel(model: ScheduledTaskModel): ScheduledTaskModel {
+  return { ...model };
+}
+
+function cloneScheduledTask(task: ScheduledTask): ScheduledTask {
+  return {
+    ...task,
+    model: cloneScheduledTaskModel(task.model),
+    delivery: cloneScheduledTaskDeliveryTarget(task.delivery),
+  };
+}
+
+function cloneScheduledTaskDeliveryTarget(
+  delivery: ScheduledTaskDeliveryTarget,
+): ScheduledTaskDeliveryTarget {
+  return { ...delivery };
+}
+
+function cloneScheduledTaskTopicBinding(
+  binding: ScheduledTaskTopicBinding,
+): ScheduledTaskTopicBinding {
+  return { ...binding };
 }
 
 function cloneTopicSessionBinding(binding: TopicSessionBinding): TopicSessionBinding {
@@ -300,6 +332,226 @@ function sanitizeServerProcessInfo(value: unknown): ServerProcessInfo | undefine
   }
 
   return { pid, startTime };
+}
+
+function isValidIsoDatetime(value: unknown): value is string {
+  return typeof value === "string" && !Number.isNaN(Date.parse(value));
+}
+
+function sanitizeScheduledTaskModel(value: unknown): ScheduledTaskModel | undefined {
+  if (!isObject(value)) {
+    return undefined;
+  }
+
+  const providerID = typeof value.providerID === "string" ? value.providerID : "";
+  const modelID = typeof value.modelID === "string" ? value.modelID : "";
+  if (!providerID || !modelID) {
+    return undefined;
+  }
+
+  return {
+    providerID,
+    modelID,
+    variant: typeof value.variant === "string" ? value.variant : null,
+  };
+}
+
+function sanitizeScheduledTaskDeliveryTarget(
+  value: unknown,
+): ScheduledTaskDeliveryTarget | undefined {
+  if (!isObject(value)) {
+    return undefined;
+  }
+
+  const chatId = typeof value.chatId === "number" ? value.chatId : null;
+  const threadId =
+    value.threadId === null
+      ? null
+      : typeof value.threadId === "number"
+        ? value.threadId
+        : undefined;
+
+  if (chatId === null || threadId === undefined) {
+    return undefined;
+  }
+
+  return { chatId, threadId };
+}
+
+function sanitizeScheduledTaskTopicBinding(value: unknown): ScheduledTaskTopicBinding | undefined {
+  if (!isObject(value)) {
+    return undefined;
+  }
+
+  const chatId = typeof value.chatId === "number" ? value.chatId : null;
+  const projectId = typeof value.projectId === "string" ? value.projectId : "";
+  const projectWorktree = typeof value.projectWorktree === "string" ? value.projectWorktree : "";
+  const threadId = typeof value.threadId === "number" ? value.threadId : null;
+  const topicName = typeof value.topicName === "string" ? value.topicName.trim() : "";
+  const createdAt = isValidIsoDatetime(value.createdAt) ? value.createdAt : "";
+  const updatedAt = isValidIsoDatetime(value.updatedAt) ? value.updatedAt : "";
+
+  if (
+    chatId === null ||
+    !projectId ||
+    !projectWorktree ||
+    threadId === null ||
+    threadId <= 0 ||
+    !topicName ||
+    !createdAt ||
+    !updatedAt
+  ) {
+    return undefined;
+  }
+
+  return {
+    chatId,
+    projectId,
+    projectWorktree,
+    threadId,
+    topicName,
+    createdAt,
+    updatedAt,
+  };
+}
+
+function sanitizeScheduledTaskTopics(value: unknown): ScheduledTaskTopicBinding[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const bindings = value
+    .map((binding) => sanitizeScheduledTaskTopicBinding(binding))
+    .filter((binding): binding is ScheduledTaskTopicBinding => binding !== undefined);
+
+  return bindings.length > 0 ? bindings : undefined;
+}
+
+function sanitizeScheduledTask(value: unknown): ScheduledTask | undefined {
+  if (!isObject(value)) {
+    return undefined;
+  }
+
+  const id = typeof value.id === "string" ? value.id : "";
+  const kind = value.kind;
+  const projectId = typeof value.projectId === "string" ? value.projectId : "";
+  const projectWorktree = typeof value.projectWorktree === "string" ? value.projectWorktree : "";
+  const createdFromScopeKey =
+    typeof value.createdFromScopeKey === "string" ? value.createdFromScopeKey : "";
+  const agent = value.agent === null || typeof value.agent === "string" ? value.agent : undefined;
+  const model = sanitizeScheduledTaskModel(value.model);
+  const delivery = sanitizeScheduledTaskDeliveryTarget(value.delivery);
+  const scheduleText = typeof value.scheduleText === "string" ? value.scheduleText : "";
+  const scheduleSummary = typeof value.scheduleSummary === "string" ? value.scheduleSummary : "";
+  const timezone = typeof value.timezone === "string" ? value.timezone : "";
+  const prompt = typeof value.prompt === "string" ? value.prompt : "";
+  const createdAt = isValidIsoDatetime(value.createdAt) ? value.createdAt : "";
+  const nextRunAt =
+    value.nextRunAt === null || isValidIsoDatetime(value.nextRunAt) ? value.nextRunAt : undefined;
+  const lastRunAt =
+    value.lastRunAt === null || isValidIsoDatetime(value.lastRunAt) ? value.lastRunAt : undefined;
+  const runCount =
+    typeof value.runCount === "number" && value.runCount >= 0 ? value.runCount : null;
+  const lastStatus = value.lastStatus;
+  const lastError =
+    value.lastError === null || typeof value.lastError === "string" ? value.lastError : undefined;
+
+  if (
+    !id ||
+    !projectId ||
+    !projectWorktree ||
+    !createdFromScopeKey ||
+    agent === undefined ||
+    !model ||
+    !delivery ||
+    !scheduleText ||
+    !scheduleSummary ||
+    !timezone ||
+    !prompt ||
+    !createdAt ||
+    nextRunAt === undefined ||
+    lastRunAt === undefined ||
+    runCount === null ||
+    (lastStatus !== "idle" &&
+      lastStatus !== "running" &&
+      lastStatus !== "success" &&
+      lastStatus !== "error") ||
+    lastError === undefined
+  ) {
+    return undefined;
+  }
+
+  if (kind === "cron") {
+    const cron = typeof value.cron === "string" ? value.cron : "";
+    if (!cron || "runAt" in value) {
+      return undefined;
+    }
+
+    return {
+      id,
+      kind,
+      projectId,
+      projectWorktree,
+      createdFromScopeKey,
+      agent,
+      model,
+      delivery,
+      scheduleText,
+      scheduleSummary,
+      timezone,
+      prompt,
+      createdAt,
+      nextRunAt,
+      lastRunAt,
+      runCount,
+      lastStatus,
+      lastError,
+      cron,
+    };
+  }
+
+  if (kind === "once") {
+    const runAt = isValidIsoDatetime(value.runAt) ? value.runAt : "";
+    if (!runAt || "cron" in value) {
+      return undefined;
+    }
+
+    return {
+      id,
+      kind,
+      projectId,
+      projectWorktree,
+      createdFromScopeKey,
+      agent,
+      model,
+      delivery,
+      scheduleText,
+      scheduleSummary,
+      timezone,
+      prompt,
+      createdAt,
+      nextRunAt,
+      lastRunAt,
+      runCount,
+      lastStatus,
+      lastError,
+      runAt,
+    };
+  }
+
+  return undefined;
+}
+
+function sanitizeScheduledTasks(value: unknown): ScheduledTask[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const tasks = value
+    .map((task) => sanitizeScheduledTask(task))
+    .filter((task): task is ScheduledTask => task !== undefined);
+
+  return tasks.length > 0 ? tasks : undefined;
 }
 
 function sanitizeSessionDirectoryCacheInfo(value: unknown): SessionDirectoryCacheInfo | undefined {
@@ -543,6 +795,8 @@ function sanitizeSettingsV2(value: unknown): Settings {
     global,
     dmScopes: dmScopes && Object.keys(dmScopes).length > 0 ? dmScopes : undefined,
     groups: groups && Object.keys(groups).length > 0 ? groups : undefined,
+    scheduledTasks: sanitizeScheduledTasks(value.scheduledTasks),
+    scheduledTaskTopics: sanitizeScheduledTaskTopics(value.scheduledTaskTopics),
     serverProcess: sanitizeServerProcessInfo(value.serverProcess),
     sessionDirectoryCache: sanitizeSessionDirectoryCacheInfo(value.sessionDirectoryCache),
   };
@@ -1131,6 +1385,38 @@ export function updateTopicSessionBindingStatus(
 
 export function getServerProcess(): ServerProcessInfo | undefined {
   return currentSettings.serverProcess ? { ...currentSettings.serverProcess } : undefined;
+}
+
+export function getScheduledTasks(): ScheduledTask[] {
+  return (currentSettings.scheduledTasks ?? []).map((task) => cloneScheduledTask(task));
+}
+
+export function getScheduledTaskTopics(): ScheduledTaskTopicBinding[] {
+  return (currentSettings.scheduledTaskTopics ?? []).map((binding) =>
+    cloneScheduledTaskTopicBinding(binding),
+  );
+}
+
+export function setScheduledTasks(tasks: ScheduledTask[]): Promise<void> {
+  if (!guardWritableSettings("scheduled tasks update")) {
+    return Promise.resolve();
+  }
+
+  currentSettings.scheduledTasks =
+    tasks.length > 0 ? tasks.map((task) => cloneScheduledTask(task)) : undefined;
+  return writeSettingsFile(currentSettings);
+}
+
+export function setScheduledTaskTopics(topics: ScheduledTaskTopicBinding[]): Promise<void> {
+  if (!guardWritableSettings("scheduled task topics update")) {
+    return Promise.resolve();
+  }
+
+  currentSettings.scheduledTaskTopics =
+    topics.length > 0
+      ? topics.map((binding) => cloneScheduledTaskTopicBinding(binding))
+      : undefined;
+  return writeSettingsFile(currentSettings);
 }
 
 export function setServerProcess(processInfo: ServerProcessInfo): void {

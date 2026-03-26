@@ -50,6 +50,30 @@ function isHeadingLine(line: string): boolean {
   return /^\s{0,3}#{1,6}\s+\S/.test(line);
 }
 
+function isMarkdownTableSeparatorLine(line: string): boolean {
+  const normalized = line.trim();
+  if (!normalized.includes("|")) {
+    return false;
+  }
+
+  return /^\|?(\s*:?-{3,}:?\s*\|)+\s*:?-{3,}:?\s*\|?$/.test(normalized);
+}
+
+function isMarkdownTableLine(line: string): boolean {
+  const normalized = line.trim();
+  if (!normalized.includes("|")) {
+    return false;
+  }
+
+  const cells = normalized
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+
+  return cells.length >= 2 && cells.some((cell) => cell.length > 0);
+}
+
 function normalizeHeadingLine(line: string): string {
   const match = line.match(/^\s{0,3}#{1,6}\s+(.+?)\s*$/);
   if (!match) {
@@ -104,6 +128,11 @@ function preprocessMarkdownForTelegram(text: string): string {
 
     if (isHorizontalRuleLine(line)) {
       output.push("──────────");
+      inQuote = false;
+      continue;
+    }
+
+    if (isMarkdownTableSeparatorLine(line)) {
       inQuote = false;
       continue;
     }
@@ -181,7 +210,16 @@ export function getAssistantParseMode(): "MarkdownV2" | undefined {
 function formatMarkdownForTelegram(text: string): string {
   try {
     const preprocessed = preprocessMarkdownForTelegram(text);
-    return convert(preprocessed, "keep");
+    return convert(preprocessed, "keep")
+      .split("\n")
+      .map((line) => {
+        if (!isMarkdownTableLine(line)) {
+          return line;
+        }
+
+        return line.replace(/(?<!\\)\|/g, "\\|");
+      })
+      .join("\n");
   } catch (error) {
     logger.warn("[Formatter] Failed to convert markdown summary, falling back to raw text", error);
     return text;
