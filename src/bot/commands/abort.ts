@@ -3,6 +3,7 @@ import { opencodeClient } from "../../opencode/client.js";
 import { clearAllInteractionState } from "../../interaction/cleanup.js";
 import { INTERACTION_CLEAR_REASON } from "../../interaction/constants.js";
 import { getCurrentSession } from "../../session/manager.js";
+import { interactionManager } from "../../interaction/manager.js";
 import { TOPIC_SESSION_STATUS } from "../../settings/manager.js";
 import { summaryAggregator } from "../../summary/aggregator.js";
 import { updateTopicBindingStatusBySessionId } from "../../topic/manager.js";
@@ -74,11 +75,14 @@ export async function abortCurrentOperation(
 ): Promise<void> {
   const scopeKey = getScopeKeyFromContext(ctx);
   const currentSession = getCurrentSession(scopeKey);
+  const activeInteraction = interactionManager.getSnapshot(scopeKey);
 
   if (!currentSession) {
     stopLocalStreaming(scopeKey);
     if (options.notifyUser !== false) {
-      await ctx.reply(t("stop.no_active_session"));
+      await ctx.reply(
+        activeInteraction ? t("stop.cancelled_interaction") : t("stop.no_active_session"),
+      );
     }
     return;
   }

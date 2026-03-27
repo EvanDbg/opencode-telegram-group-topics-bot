@@ -173,4 +173,32 @@ describe("bot/handlers/inline-menu", () => {
     expect(handled).toBe(true);
     expect(interactionManager.getSnapshot()).toBeNull();
   });
+
+  it("restores task prompt interaction after closing an inline menu opened during task setup", async () => {
+    interactionManager.start({
+      kind: "task",
+      expectedInput: "mixed",
+      metadata: { stage: "prompt" },
+      allowedCommands: ["/abort", "/help"],
+    });
+
+    const replyCtx = createReplyContext(88, 77);
+    await replyWithInlineMenu(replyCtx, {
+      menuKind: "agent",
+      text: "Select agent",
+      keyboard: new InlineKeyboard().text("Build", "agent:build"),
+    });
+
+    const cancelCtx = createCallbackContext("inline:cancel:agent", 88);
+    const handled = await handleInlineMenuCancel(cancelCtx);
+
+    expect(handled).toBe(true);
+    expect(interactionManager.getSnapshot()).toEqual(
+      expect.objectContaining({
+        kind: "task",
+        expectedInput: "mixed",
+        metadata: { stage: "prompt" },
+      }),
+    );
+  });
 });

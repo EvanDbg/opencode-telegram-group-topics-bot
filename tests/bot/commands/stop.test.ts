@@ -6,6 +6,7 @@ import { questionManager } from "../../../src/question/manager.js";
 import { permissionManager } from "../../../src/permission/manager.js";
 import { renameManager } from "../../../src/rename/manager.js";
 import { interactionManager } from "../../../src/interaction/manager.js";
+import { taskCreationManager } from "../../../src/scheduled-task/creation-manager.js";
 import type { Question } from "../../../src/question/types.js";
 import type { PermissionRequest } from "../../../src/permission/types.js";
 import { t } from "../../../src/i18n/index.js";
@@ -61,6 +62,7 @@ function activateInteractionState(): void {
 describe("bot/commands/abort", () => {
   beforeEach(() => {
     clearAllInteractionState("test_setup");
+    taskCreationManager.clearAll();
     mocked.currentSession = null;
     mocked.abortMock.mockReset();
     mocked.statusMock.mockReset();
@@ -76,10 +78,42 @@ describe("bot/commands/abort", () => {
 
     await abortCommand(ctx as never);
 
-    expect(replyMock).toHaveBeenCalledWith(t("stop.no_active_session"));
+    expect(replyMock).toHaveBeenCalledWith(t("stop.cancelled_interaction"));
     expect(questionManager.isActive()).toBe(false);
     expect(permissionManager.isActive()).toBe(false);
     expect(renameManager.isWaitingForName()).toBe(false);
+    expect(interactionManager.getSnapshot()).toBeNull();
+    expect(mocked.abortMock).not.toHaveBeenCalled();
+  });
+
+  it("cancels scheduled task setup even when there is no active session", async () => {
+    taskCreationManager.start(
+      "project-1",
+      "/repo/app",
+      "global",
+      "build",
+      {
+        providerID: "openai",
+        modelID: "gpt-5",
+        variant: "fast",
+      },
+      "global",
+    );
+    interactionManager.start({
+      kind: "task",
+      expectedInput: "text",
+      metadata: { stage: "prompt" },
+    });
+
+    const replyMock = vi.fn().mockResolvedValue(undefined);
+    const ctx = {
+      reply: replyMock,
+    } as unknown as Context;
+
+    await abortCommand(ctx as never);
+
+    expect(replyMock).toHaveBeenCalledWith(t("stop.cancelled_interaction"));
+    expect(taskCreationManager.isActive()).toBe(false);
     expect(interactionManager.getSnapshot()).toBeNull();
     expect(mocked.abortMock).not.toHaveBeenCalled();
   });

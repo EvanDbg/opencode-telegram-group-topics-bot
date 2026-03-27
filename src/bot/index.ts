@@ -56,6 +56,7 @@ import { ingestSessionInfoForCache } from "../session/cache-manager.js";
 import { logger } from "../utils/logger.js";
 import { safeBackgroundTask } from "../utils/safe-background-task.js";
 import { pinnedMessageManager } from "../pinned/manager.js";
+import { taskCreationManager } from "../scheduled-task/creation-manager.js";
 import { t } from "../i18n/index.js";
 import { dispatchNextQueuedPrompt, processUserPrompt } from "./handlers/prompt.js";
 import { handleVoiceMessage } from "./handlers/voice.js";
@@ -151,6 +152,16 @@ function rememberScopeTarget(ctx: Context): void {
   }
 
   telegramRateLimiter.setActiveScopeKey(scope.key);
+}
+
+function isReplyKeyboardControlText(text: string): boolean {
+  return (
+    AGENT_MODE_BUTTON_TEXT_PATTERN.test(text) ||
+    MODEL_BUTTON_TEXT_PATTERN.test(text) ||
+    VARIANT_BUTTON_TEXT_PATTERN.test(text) ||
+    /^📊(?:\s|$)/.test(text) ||
+    text === t("keyboard.general_defaults")
+  );
 }
 
 function bindBotInstance(bot: Bot<Context>): void {
@@ -1000,7 +1011,10 @@ export function createBot(): Bot<Context> {
     await next();
   });
 
-  const blockMenuWhileInteractionActive = async (ctx: Context): Promise<boolean> => {
+  const blockMenuWhileInteractionActive = async (
+    ctx: Context,
+    menuKind?: "agent" | "model" | "variant" | "context",
+  ): Promise<boolean> => {
     const activeInteraction = interactionManager.getSnapshot(
       getScopeFromContext(ctx)?.key ?? GLOBAL_SCOPE_KEY,
     );
@@ -1008,10 +1022,25 @@ export function createBot(): Bot<Context> {
       return false;
     }
 
+    const taskStage = String(activeInteraction.metadata.stage ?? "");
+    const allowTaskDraftDefaultChange =
+      activeInteraction.kind === "task" &&
+      activeInteraction.expectedInput === "mixed" &&
+      taskStage === "prompt" &&
+      (menuKind === "agent" || menuKind === "model" || menuKind === "variant");
+
+    if (allowTaskDraftDefaultChange) {
+      return false;
+    }
+
     logger.debug(
       `[Bot] Blocking menu open while interaction active: kind=${activeInteraction.kind}, expectedInput=${activeInteraction.expectedInput}`,
     );
-    await ctx.reply(t("interaction.blocked.finish_current"));
+    await ctx.reply(
+      activeInteraction.kind === "task"
+        ? t("task.blocked.only_defaults_before_prompt")
+        : t("interaction.blocked.finish_current"),
+    );
     return true;
   };
 
@@ -1091,7 +1120,7 @@ export function createBot(): Bot<Context> {
     logger.debug(`[Bot] Agent mode button pressed: ${ctx.message?.text}`);
 
     try {
-      if (await blockMenuWhileInteractionActive(ctx)) {
+      if (await blockMenuWhileInteractionActive(ctx, "agent")) {
         return;
       }
 
@@ -1108,7 +1137,7 @@ export function createBot(): Bot<Context> {
     logger.debug(`[Bot] Model button pressed: ${ctx.message?.text}`);
 
     try {
-      if (await blockMenuWhileInteractionActive(ctx)) {
+      if (await blockMenuWhileInteractionActive(ctx, "model")) {
         return;
       }
 
@@ -1131,7 +1160,7 @@ export function createBot(): Bot<Context> {
     logger.debug(`[Bot] Context button pressed: ${ctx.message?.text}`);
 
     try {
-      if (await blockMenuWhileInteractionActive(ctx)) {
+      if (await blockMenuWhileInteractionActive(ctx, "context")) {
         return;
       }
 
@@ -1148,7 +1177,7 @@ export function createBot(): Bot<Context> {
     logger.debug(`[Bot] Variant button pressed: ${ctx.message?.text}`);
 
     try {
-      if (await blockMenuWhileInteractionActive(ctx)) {
+      if (await blockMenuWhileInteractionActive(ctx, "variant")) {
         return;
       }
 
@@ -1335,6 +1364,11 @@ export function createBot(): Bot<Context> {
 
     const handledTask = await handleTaskTextAnswer(ctx);
     if (handledTask) {
+      return;
+    }
+
+    if (taskCreationManager.isActive(scopeKey) && isReplyKeyboardControlText(text)) {
+      logger.debug("[Bot] Ignoring reply keyboard control text during task setup");
       return;
     }
 

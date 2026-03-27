@@ -4,6 +4,7 @@ This repository is a product fork of the original single-chat project at `grinev
 
 ## Last Synced Upstream
 
+- Permanent git remote: `upstream` -> `https://github.com/grinev/opencode-telegram-bot.git`
 - Upstream repo: `https://github.com/grinev/opencode-telegram-bot`
 - Upstream branch: `main`
 - Last reviewed upstream head: `aecb975` (`chore(release): v0.13.2`, 2026-03-25)
@@ -29,6 +30,7 @@ This repository is a product fork of the original single-chat project at `grinev
 - `c72e7cb` ported: French locale support added and registered in locale validation/docs
 - `6afb300` + `6619532` ported: scoped pinned messages now show cumulative session cost
 - `f3b3fc6` + `a337370` + `54a493d` ported: `/commands` pagination, filtering, and clearer execution UX
+- `fcd2273` + `e4eb83e` + `b414bf3` covered by fork commit `c97baf6`: upstream tool-call streaming/reply formatting changes were already adapted into this fork's topic-aware streaming flow
 
 ## Upstream Changes Intentionally Adapted
 
@@ -51,31 +53,41 @@ This repository is a product fork of the original single-chat project at `grinev
 
 - Release-only bumps (`v0.11.1`, `v0.11.2`)
 - Release-only bumps (`v0.11.3`, `v0.11.4`)
-- Release-only bumps (`v0.12.0`, `v0.12.1`, `v0.13.0`, `v0.13.1`, `v0.13.2`)
+- Release-only bumps (`v0.12.0`, `v0.12.1`, `v0.13.0`)
+- Release-only bumps (`v0.13.1`, `v0.13.2`) reviewed; runtime changes were already covered by fork commit `c97baf6`
 - Upstream docs that frame forum topics / parallel thread workflows as out of scope
 - Repo template churn that does not affect runtime behavior
 - `d392778` upstream concept docs link back to this fork; not needed in fork docs
 
 ## Sync Workflow
 
-1. Compare upstream `main` against the last reviewed commit in this file.
-2. Classify changes into:
+1. Refresh upstream refs with `git fetch upstream main`.
+2. Compare `upstream/main` against the last reviewed commit in this file.
+3. Classify changes into:
    - safe cherry-pick / direct port
    - manual adaptation required
    - skip for fork-specific reasons
-3. Port runtime/setup fixes first.
-4. Port command/state changes only after checking thread-scoped behavior in:
+4. Use `git log --oneline <last-reviewed>..upstream/main` and `git diff --stat <last-reviewed>..upstream/main` for the initial review.
+5. Port runtime/setup fixes first.
+6. Port command/state changes only after checking thread-scoped behavior in:
    - `src/bot/commands/`
    - `src/bot/index.ts`
    - `src/interaction/`
    - `src/model/manager.ts`
    - `src/pinned/manager.ts`
    - `src/settings/manager.ts`
-5. Run `npm run build`, `npm run lint`, and `npm test`.
-6. Update this file:
+7. Run `npm run build`, `npm run lint`, and `npm test`.
+8. Update this file:
    - reviewed upstream head
    - what was ported
    - what was skipped and why
+
+## Remote Notes
+
+- Prefer the permanent `upstream` remote for all future fork-sync checks; do not create ad-hoc temporary refs when the remote is available.
+- Standard refresh command: `git fetch upstream main`
+- Inspect new upstream commits with `git log --oneline HEAD..upstream/main` only when you specifically want to compare your current branch tip to upstream; for sync review, compare from the recorded `Last reviewed upstream head` instead.
+- If the remote is ever missing in a fresh clone, restore it with `git remote add upstream https://github.com/grinev/opencode-telegram-bot.git`
 
 ## Known Conflict Hotspots
 

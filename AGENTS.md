@@ -8,7 +8,7 @@ Instructions for AI agents working on this project.
 This fork is optimized for Telegram forum topics: the General topic is the control lane, while individual topic threads act as scoped session lanes.
 
 Functional requirements, features, and development status are in [PRODUCT.md](./PRODUCT.md).
-Fork sync policy and upstream review notes are in [FORK_SYNC.md](./FORK_SYNC.md).
+This repo is a fork of `grinev/opencode-telegram-bot` with group-topics support added; if you need to review or port upstream changes, read [FORK_SYNC.md](./FORK_SYNC.md).
 
 ## Technology stack
 

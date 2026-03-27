@@ -25,6 +25,11 @@ interface ActiveInlineMenuMetadata {
   messageId: number;
 }
 
+interface SuspendedTaskInteractionMetadata {
+  stage: string;
+  allowedCommands: string[];
+}
+
 interface InlineMenuReplyOptions {
   menuKind: InlineMenuKind;
   text: string;
@@ -74,6 +79,51 @@ function getInlineCancelCallbackData(menuKind: InlineMenuKind): string {
   return `${INLINE_MENU_CANCEL_PREFIX}${menuKind}`;
 }
 
+function getSuspendedTaskInteractionMetadata(
+  state: InteractionState | null,
+): SuspendedTaskInteractionMetadata | null {
+  if (state?.kind !== "task" || state.expectedInput !== "mixed") {
+    return null;
+  }
+
+  const stage = state.metadata.stage;
+  if (typeof stage !== "string") {
+    return null;
+  }
+
+  return {
+    stage,
+    allowedCommands: [...state.allowedCommands],
+  };
+}
+
+function restoreSuspendedInteraction(scopeKey: string, state: InteractionState | null): void {
+  if (state?.kind !== "inline") {
+    return;
+  }
+
+  const suspendedTaskStage = state.metadata.suspendedTaskStage;
+  if (typeof suspendedTaskStage !== "string") {
+    return;
+  }
+
+  const suspendedAllowedCommands = Array.isArray(state.metadata.suspendedAllowedCommands)
+    ? state.metadata.suspendedAllowedCommands.filter(
+        (value): value is string => typeof value === "string",
+      )
+    : undefined;
+
+  interactionManager.start(
+    {
+      kind: "task",
+      expectedInput: "mixed",
+      allowedCommands: suspendedAllowedCommands,
+      metadata: { stage: suspendedTaskStage },
+    },
+    scopeKey,
+  );
+}
+
 export function appendInlineMenuCancelButton(
   keyboard: InlineKeyboard,
   menuKind: InlineMenuKind,
@@ -99,6 +149,9 @@ export async function replyWithInlineMenu(
 ): Promise<number> {
   const scope = getScopeFromContext(ctx);
   const scopeKey = scope?.key ?? getScopeKeyFromContext(ctx);
+  const suspendedTaskInteraction = getSuspendedTaskInteractionMetadata(
+    interactionManager.getSnapshot(scopeKey),
+  );
   const keyboard = appendInlineMenuCancelButton(options.keyboard, options.menuKind);
   const replyOptions: {
     reply_markup: InlineKeyboard;
@@ -122,6 +175,12 @@ export async function replyWithInlineMenu(
       metadata: {
         menuKind: options.menuKind,
         messageId: message.message_id,
+        ...(suspendedTaskInteraction
+          ? {
+              suspendedTaskStage: suspendedTaskInteraction.stage,
+              suspendedAllowedCommands: suspendedTaskInteraction.allowedCommands,
+            }
+          : {}),
       },
     },
     scopeKey,
@@ -166,7 +225,10 @@ export async function ensureActiveInlineMenu(
 export function clearActiveInlineMenu(reason: string, scopeKey: string = "global"): void {
   const state = interactionManager.getSnapshot(scopeKey);
   if (state?.kind === "inline") {
-    interactionManager.clear(reason, scopeKey);
+    restoreSuspendedInteraction(scopeKey, state);
+    if (interactionManager.getSnapshot(scopeKey)?.kind === "inline") {
+      interactionManager.clear(reason, scopeKey);
+    }
   }
 }
 

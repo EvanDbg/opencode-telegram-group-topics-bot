@@ -197,12 +197,12 @@ export const de: I18nDictionary = {
   "task.output_topic_commands_only":
     "⚠️ Die meisten Befehle sind in Scheduled Task Output deaktiviert. Nutze 🎛️ Session Control, um Projekte, Sessions und geplante Aufgaben zu verwalten.",
   "task.schedule_prompt":
-    "Sende den Zeitplan für diese Aufgabe. Beispiele: `jeden Werktag um 09:00` oder `morgen um 18:30`.\n\nDiese Aufgabe verwendet beim Abschluss der Erstellung die aktuellen Agent- und Modell-Standards aus 🎛️ Session Control.",
+    "Sende den Zeitplan für diese Aufgabe. Beispiele: `jeden Werktag um 09:00` oder `morgen um 18:30`.\n\nNachdem der Zeitplan erkannt wurde, kannst du Agent- und Modell-Standards aus 🎛️ Session Control noch ändern, bevor du den finalen Prompt sendest.",
   "task.schedule_parsing": "⏳ Der Zeitplan wird noch analysiert. Warte auf die Vorschau.",
   "task.schedule_preview":
     "Zeitplan erkannt.\n\nZusammenfassung: {summary}\nNächster Lauf: {nextRunAt}",
   "task.prompt_prompt":
-    "Sende den Prompt für diese geplante Aufgabe. Sie behält die aktuellen Agent- und Modell-Standards aus 🎛️ Session Control zum Zeitpunkt der Erstellung.",
+    "Sende den Prompt für diese geplante Aufgabe. Du kannst Agent, Modell oder Variante aus 🎛️ Session Control noch ändern; die Aufgabe verwendet die Standardwerte, die aktiv sind, wenn du den finalen Prompt sendest.",
   "task.schedule_error":
     "⚠️ Dieser Zeitplan konnte nicht verstanden werden: {message}\n\nSende eine klarere Beschreibung.",
   "task.created":
@@ -213,6 +213,10 @@ export const de: I18nDictionary = {
     "⚠️ Schließe zuerst die Einrichtung der geplanten Aufgabe ab oder nutze /abort zum Abbrechen.",
   "task.blocked.command_not_allowed":
     "⚠️ Dieser Befehl ist während der Einrichtung einer geplanten Aufgabe nicht verfügbar.",
+  "task.blocked.finish_or_abort_to_change_defaults":
+    "⚠️ Diese Aufgabe hat die aktuellen Standardwerte aus 🎛️ Session Control bereits übernommen. Schließe sie so ab oder nutze /abort und starte /task neu, wenn du andere Standardwerte möchtest.",
+  "task.blocked.only_defaults_before_prompt":
+    "⚠️ Die Einrichtung der geplanten Aufgabe ist aktiv. Vor dem finalen Prompt kannst du nur Agent-, Modell- oder Varianten-Standards ändern; sonst schließe die Einrichtung ab oder nutze /abort.",
   "task.list.title": "Geplante Aufgaben:",
   "task.list.empty": "📭 Keine geplanten Aufgaben für dieses Projekt in diesem Chat.",
   "task.list.none": "nicht geplant",
@@ -233,6 +237,8 @@ export const de: I18nDictionary = {
 
   "stop.no_active_session":
     "🛑 Agent wurde nicht gestartet\n\nErstelle eine Sitzung mit /new oder wähle eine über /sessions aus.",
+  "stop.cancelled_interaction":
+    "✅ Die aktuelle Einrichtung wurde abgebrochen. Du kannst jetzt Standardwerte ändern oder neu starten.",
   "stop.in_progress":
     "🛑 Event-Stream gestoppt, sende Abbruchsignal...\n\nWarte darauf, dass der Agent stoppt.",
   "stop.warn_unconfirmed":

@@ -196,12 +196,12 @@ export const es: I18nDictionary = {
   "task.output_topic_commands_only":
     "⚠️ La mayoría de los comandos están desactivados en Scheduled Task Output. Usa 🎛️ Session Control para gestionar proyectos, sesiones y tareas programadas.",
   "task.schedule_prompt":
-    "Envía el horario para esta tarea. Ejemplos: `cada día laboral a las 09:00` o `mañana a las 18:30`.\n\nEsta tarea usará los valores actuales de agente y modelo de 🎛️ Session Control cuando termines de crearla.",
+    "Envía el horario para esta tarea. Ejemplos: `cada día laboral a las 09:00` o `mañana a las 18:30`.\n\nDespués de analizar el horario, todavía puedes cambiar los valores de agente y modelo de 🎛️ Session Control antes de enviar el prompt final.",
   "task.schedule_parsing": "⏳ Todavía estoy interpretando el horario. Espera la vista previa.",
   "task.schedule_preview":
     "Horario interpretado.\n\nResumen: {summary}\nPróxima ejecución: {nextRunAt}",
   "task.prompt_prompt":
-    "Envía el prompt para esta tarea programada. Mantendrá los valores actuales de agente y modelo de 🎛️ Session Control guardados al crearla.",
+    "Envía el prompt para esta tarea programada. Aún puedes cambiar el agente, modelo o variante de 🎛️ Session Control; la tarea usará los valores activos cuando envíes el prompt final.",
   "task.schedule_error":
     "⚠️ No pude interpretar ese horario: {message}\n\nEnvía una descripción más clara.",
   "task.created":
@@ -212,6 +212,10 @@ export const es: I18nDictionary = {
     "⚠️ Termina primero la configuración de la tarea programada o usa /abort para cancelarla.",
   "task.blocked.command_not_allowed":
     "⚠️ Este comando no está disponible mientras la configuración de la tarea programada está activa.",
+  "task.blocked.finish_or_abort_to_change_defaults":
+    "⚠️ Esta tarea ya guardó los valores actuales de 🎛️ Session Control. Termínala así, o usa /abort y vuelve a iniciar /task si quieres otros valores.",
+  "task.blocked.only_defaults_before_prompt":
+    "⚠️ La configuración de la tarea programada está activa. Antes del prompt final solo puedes cambiar los valores de agente, modelo o variante; si no, termina la configuración o usa /abort.",
   "task.list.title": "Tareas programadas:",
   "task.list.empty": "📭 No hay tareas programadas para este proyecto en este chat.",
   "task.list.none": "sin programación",
@@ -232,6 +236,8 @@ export const es: I18nDictionary = {
 
   "stop.no_active_session":
     "🛑 El agente no se inició\n\nCrea una sesión con /new o selecciona una con /sessions.",
+  "stop.cancelled_interaction":
+    "✅ Se canceló la configuración actual. Ahora puedes cambiar los valores o empezar de nuevo.",
   "stop.in_progress":
     "🛑 Flujo de eventos detenido; enviando señal de aborto...\n\nEsperando a que el agente se detenga.",
   "stop.warn_unconfirmed":

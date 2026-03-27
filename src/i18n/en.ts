@@ -207,12 +207,12 @@ export const en = {
   "task.output_topic_commands_only":
     "⚠️ Most commands are disabled in Scheduled Task Output. Use 🎛️ Session Control to manage projects, sessions, and scheduled tasks.",
   "task.schedule_prompt":
-    "Send the schedule for this task. Examples: `every weekday at 09:00` or `tomorrow at 18:30`.\n\nThis task will use the current 🎛️ Session Control agent and model defaults when you finish creating it.",
+    "Send the schedule for this task. Examples: `every weekday at 09:00` or `tomorrow at 18:30`.\n\nAfter the schedule is parsed, you can still change agent and model defaults from 🎛️ Session Control before sending the final task prompt.",
   "task.schedule_parsing":
     "⏳ Still parsing the schedule. Wait for the preview before sending more text.",
   "task.schedule_preview": "Schedule parsed.\n\nSummary: {summary}\nNext run: {nextRunAt}",
   "task.prompt_prompt":
-    "Send the prompt for this scheduled task. It will keep the current 🎛️ Session Control agent and model defaults saved at creation time.",
+    "Send the prompt for this scheduled task. You can still change the 🎛️ Session Control agent, model, or variant before sending it; this task will use whatever defaults are active when you send the final prompt.",
   "task.schedule_error":
     "⚠️ I could not parse that schedule: {message}\n\nSend a clearer schedule description.",
   "task.created": "✅ Scheduled task created.\n\nSchedule: {summary}\nNext run: {nextRunAt}",
@@ -222,6 +222,10 @@ export const en = {
     "⚠️ Finish the scheduled task setup first by sending the requested text, or use /abort to cancel.",
   "task.blocked.command_not_allowed":
     "⚠️ This command is not available while scheduled task setup is active.",
+  "task.blocked.finish_or_abort_to_change_defaults":
+    "⚠️ This task already captured the current 🎛️ Session Control defaults. Finish it as-is, or use /abort and start /task again if you want different defaults.",
+  "task.blocked.only_defaults_before_prompt":
+    "⚠️ Scheduled task setup is active. Before the final prompt, you can only change agent, model, or variant defaults; otherwise finish the setup or use /abort.",
   "task.list.title": "Scheduled tasks:",
   "task.list.empty": "📭 No scheduled tasks for this project in this chat.",
   "task.list.none": "not scheduled",
@@ -242,6 +246,8 @@ export const en = {
 
   "stop.no_active_session":
     "🛑 Agent was not started\n\nCreate a session with /new or select one via /sessions.",
+  "stop.cancelled_interaction":
+    "✅ Cancelled the current setup. You can now change defaults or start again.",
   "stop.in_progress":
     "🛑 Event stream stopped, sending abort signal...\n\nWaiting for agent to stop.",
   "stop.warn_unconfirmed":

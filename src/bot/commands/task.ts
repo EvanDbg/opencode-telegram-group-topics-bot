@@ -163,7 +163,11 @@ export async function handleTaskTextAnswer(ctx: Context): Promise<boolean> {
   }
 
   const interactionState = interactionManager.getSnapshot(scopeKey);
-  if (interactionState?.kind !== "task") {
+  if (interactionState && interactionState.kind !== "task") {
+    if (interactionState.kind === "inline" && taskCreationManager.isWaitingForPrompt(scopeKey)) {
+      return false;
+    }
+
     taskCreationManager.clear(scopeKey);
     return false;
   }
@@ -199,7 +203,7 @@ export async function handleTaskTextAnswer(ctx: Context): Promise<boolean> {
       interactionManager.transition(
         {
           kind: "task",
-          expectedInput: "text",
+          expectedInput: "mixed",
           metadata: { stage: "prompt" },
         },
         scopeKey,
@@ -231,6 +235,9 @@ export async function handleTaskTextAnswer(ctx: Context): Promise<boolean> {
       return true;
     }
 
+    const currentAgent = getStoredAgent(scopeKey);
+    const currentModel = createScheduledTaskModel(getStoredModel(scopeKey));
+
     const { delivery, createdTopicLink } = await resolveScheduledTaskDeliveryTarget(
       ctx,
       currentProject,
@@ -243,8 +250,8 @@ export async function handleTaskTextAnswer(ctx: Context): Promise<boolean> {
             projectId: creationState.projectId,
             projectWorktree: creationState.projectWorktree,
             createdFromScopeKey: creationState.createdFromScopeKey,
-            agent: creationState.agent,
-            model: creationState.model,
+            agent: currentAgent,
+            model: currentModel,
             delivery,
             scheduleText: creationState.scheduleText ?? creationState.parsedSchedule.summary,
             scheduleSummary: creationState.parsedSchedule.summary,
@@ -264,8 +271,8 @@ export async function handleTaskTextAnswer(ctx: Context): Promise<boolean> {
             projectId: creationState.projectId,
             projectWorktree: creationState.projectWorktree,
             createdFromScopeKey: creationState.createdFromScopeKey,
-            agent: creationState.agent,
-            model: creationState.model,
+            agent: currentAgent,
+            model: currentModel,
             delivery,
             scheduleText: creationState.scheduleText ?? creationState.parsedSchedule.summary,
             scheduleSummary: creationState.parsedSchedule.summary,

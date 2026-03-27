@@ -171,17 +171,21 @@ export const zh: I18nDictionary = {
   "task.output_topic_commands_only":
     "⚠️ Scheduled Task Output 中大多数命令都不可用。请使用 🎛️ Session Control 管理项目、会话和定时任务。",
   "task.schedule_prompt":
-    "发送这个任务的计划时间。例如：`每个工作日 09:00` 或 `明天 18:30`。\n\n完成创建时，这个任务会使用当前 🎛️ Session Control 中的代理和模型默认值。",
+    "发送这个任务的计划时间。例如：`每个工作日 09:00` 或 `明天 18:30`。\n\n计划解析完成后，在发送最终提示词之前，你仍然可以修改 🎛️ Session Control 中的代理和模型默认值。",
   "task.schedule_parsing": "⏳ 仍在解析计划时间。请等待预览消息。",
   "task.schedule_preview": "计划已解析。\n\n摘要：{summary}\n下次运行：{nextRunAt}",
   "task.prompt_prompt":
-    "发送这个定时任务的提示词。它会保留创建时当前 🎛️ Session Control 中保存的代理和模型默认值。",
+    "发送这个定时任务的提示词。在发送前，你仍然可以修改 🎛️ Session Control 中的代理、模型或变体；任务会使用你发送最终提示词时当前生效的默认值。",
   "task.schedule_error": "⚠️ 我无法解析这个计划：{message}\n\n请发送更清晰的时间描述。",
   "task.created": "✅ 定时任务已创建。\n\n计划：{summary}\n下次运行：{nextRunAt}",
   "task.created_topic_link": "🔗 定时运行通知会发送到这里：{url}",
   "task.create_error": "🔴 创建定时任务失败。",
   "task.blocked.expected_text": "⚠️ 请先完成定时任务设置，或使用 /abort 取消。",
   "task.blocked.command_not_allowed": "⚠️ 定时任务设置进行中时，这个命令不可用。",
+  "task.blocked.finish_or_abort_to_change_defaults":
+    "⚠️ 这个任务已经保存了当前 🎛️ Session Control 的默认设置。你可以按当前设置完成它，或者用 /abort 取消后重新运行 /task 来改用其他默认值。",
+  "task.blocked.only_defaults_before_prompt":
+    "⚠️ 定时任务设置仍在进行中。在发送最终提示词之前，你只能修改代理、模型或变体默认值；否则请完成设置或使用 /abort。",
   "task.list.title": "定时任务：",
   "task.list.empty": "📭 这个聊天中的当前项目还没有定时任务。",
   "task.list.none": "未计划",
@@ -200,6 +204,7 @@ export const zh: I18nDictionary = {
     "🧹 清理完成。检查：{inspected}，关闭：{closed}，跳过：{skipped}，失败：{failed}。",
 
   "stop.no_active_session": "🛑 代理尚未启动\n\n使用 /new 创建会话，或通过 /sessions 选择一个。",
+  "stop.cancelled_interaction": "✅ 当前设置已取消。你现在可以修改默认值或重新开始。",
   "stop.in_progress": "🛑 已停止事件流，正在发送中止信号...\n\n等待代理停止。",
   "stop.warn_unconfirmed":
     "⚠️ 事件流已停止，但服务器未确认中止。\n\n检查 /status，并在几秒后重试 /abort。",

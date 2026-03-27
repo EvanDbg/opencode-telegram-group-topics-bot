@@ -240,6 +240,7 @@ describe("bot/commands/task", () => {
     expect((commandCtx.reply as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]).toContain(
       "🎛️ Session Control",
     );
+    expect(interactionManager.getSnapshot("-100123:77")?.expectedInput).toBe("mixed");
     expect(replyMock).toHaveBeenNthCalledWith(
       1,
       t("task.schedule_preview", {
@@ -249,5 +250,74 @@ describe("bot/commands/task", () => {
     );
     expect(replyMock).toHaveBeenNthCalledWith(2, t("task.prompt_prompt"));
     expect(t("task.prompt_prompt")).toContain("🎛️ Session Control");
+  });
+
+  it("uses the latest scope defaults when the final task prompt is sent", async () => {
+    mocked.parseTaskScheduleMock.mockResolvedValue({
+      kind: "once",
+      runAt: "2026-03-26T18:30:00.000Z",
+      timezone: "UTC",
+      summary: "in one minute",
+      nextRunAt: "2026-03-26T18:30:00.000Z",
+    });
+    mocked.getScheduledTaskTopicByChatAndProjectMock.mockResolvedValue({
+      chatId: -100123,
+      projectId: "project-1",
+      projectWorktree: "/repo/app",
+      threadId: 333,
+      topicName: "⏰ Scheduled Task Output",
+      createdAt: "2026-03-25T00:00:00.000Z",
+      updatedAt: "2026-03-25T00:00:00.000Z",
+    });
+
+    await taskCommand(createContext("/task", 77) as never);
+    await handleTaskTextAnswer(createContext("in one minute", 77));
+
+    mocked.getStoredAgentMock.mockReturnValue("build");
+    mocked.getStoredModelMock.mockReturnValue({
+      providerID: "anthropic",
+      modelID: "claude-sonnet",
+      variant: "plan",
+    });
+
+    await handleTaskTextAnswer(createContext("Run the queued review", 77));
+
+    expect(mocked.addScheduledTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agent: "build",
+        model: {
+          providerID: "anthropic",
+          modelID: "claude-sonnet",
+          variant: "plan",
+        },
+      }),
+    );
+  });
+
+  it("keeps task creation active while an inline defaults menu is open", async () => {
+    mocked.parseTaskScheduleMock.mockResolvedValue({
+      kind: "once",
+      runAt: "2026-03-26T18:30:00.000Z",
+      timezone: "UTC",
+      summary: "in one minute",
+      nextRunAt: "2026-03-26T18:30:00.000Z",
+    });
+
+    await taskCommand(createContext("/task", 77) as never);
+    await handleTaskTextAnswer(createContext("in one minute", 77));
+
+    interactionManager.start(
+      {
+        kind: "inline",
+        expectedInput: "callback",
+        metadata: { menuKind: "agent", messageId: 1234 },
+      },
+      "-100123:77",
+    );
+
+    const handled = await handleTaskTextAnswer(createContext("🛠️ Build Mode", 77));
+
+    expect(handled).toBe(false);
+    expect(taskCreationManager.isActive("-100123:77")).toBe(true);
   });
 });
