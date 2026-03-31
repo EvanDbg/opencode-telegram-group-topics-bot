@@ -317,4 +317,4 @@ Open issues in this repository for this fork. For upstream discussion, see [grin
 
 ## License
 
-[MIT](LICENSE) © Ruslan Grinev
+[MIT](LICENSE) • Original project © Ruslan Grinev • Fork changes © Shane Kunz

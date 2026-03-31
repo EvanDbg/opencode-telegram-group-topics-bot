@@ -175,17 +175,17 @@ installed mode 下的配置路径：
 
 ### 常用环境变量
 
-| 环境变量                   | 说明                                                 | 必须 | 默认值                 |
-| -------------------------- | ---------------------------------------------------- | :------: | ----------------------- |
-| `TELEGRAM_BOT_TOKEN`       | 来自 @BotFather 的 bot token                         |   Yes    | -                       |
-| `TELEGRAM_ALLOWED_USER_ID` | 你的 Telegram 数字用户 ID                            |   Yes    | -                       |
-| `OPENCODE_API_URL`         | OpenCode 服务地址                                    |    No    | `http://localhost:4096` |
-| `OPENCODE_SERVER_USERNAME` | 服务认证用户名                                       |    No    | `opencode`              |
-| `OPENCODE_SERVER_PASSWORD` | 服务认证密码                                         |    No    | -                       |
-| `OPENCODE_MODEL_PROVIDER`  | 默认模型提供方                                       |   Yes    | `opencode`              |
-| `OPENCODE_MODEL_ID`        | 默认模型 ID                                          |   Yes    | `big-pickle`            |
-| `BOT_LOCALE`               | 机器人界面语言（`en`、`de`、`es`、`fr`、`ru`、`zh`） |    No    | `en`                    |
-| `LOG_LEVEL`                | 日志级别（`debug`、`info`、`warn`、`error`）         |    No    | `info`                  |
+| 环境变量                   | 说明                                                 | 必须 | 默认值                  |
+| -------------------------- | ---------------------------------------------------- | :--: | ----------------------- |
+| `TELEGRAM_BOT_TOKEN`       | 来自 @BotFather 的 bot token                         | Yes  | -                       |
+| `TELEGRAM_ALLOWED_USER_ID` | 你的 Telegram 数字用户 ID                            | Yes  | -                       |
+| `OPENCODE_API_URL`         | OpenCode 服务地址                                    |  No  | `http://localhost:4096` |
+| `OPENCODE_SERVER_USERNAME` | 服务认证用户名                                       |  No  | `opencode`              |
+| `OPENCODE_SERVER_PASSWORD` | 服务认证密码                                         |  No  | -                       |
+| `OPENCODE_MODEL_PROVIDER`  | 默认模型提供方                                       | Yes  | `opencode`              |
+| `OPENCODE_MODEL_ID`        | 默认模型 ID                                          | Yes  | `big-pickle`            |
+| `BOT_LOCALE`               | 机器人界面语言（`en`、`de`、`es`、`fr`、`ru`、`zh`） |  No  | `en`                    |
+| `LOG_LEVEL`                | 日志级别（`debug`、`info`、`warn`、`error`）         |  No  | `info`                  |
 
 请务必妥善保管 `.env`，其中包含你的 bot token。
 
@@ -235,4 +235,4 @@ installed mode 下的配置路径：
 
 ## License
 
-[MIT](LICENSE) © Ruslan Grinev
+[MIT](LICENSE) • 原项目 © Ruslan Grinev • Fork 修改 © Shane Kunz
