@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { pinnedMessageManager } from "../../src/pinned/manager.js";
-import { contextStateManager } from "../../src/context/manager.js";
 import {
   __resetSettingsForTests,
   setCurrentProject,
@@ -250,25 +249,5 @@ describe("pinned manager scoped state", () => {
         assistantCost: expect.closeTo(0.005, 5),
       }),
     );
-  });
-
-  it("clears shared context state when pinned state is cleared", async () => {
-    const api = createApi();
-
-    setCurrentProject({ id: "p1", worktree: "/repo/a" }, "chat:-1:10");
-    setCurrentModel({ providerID: "openai", modelID: "gpt-5", variant: "default" }, "chat:-1:10");
-
-    pinnedMessageManager.initialize(api as never, -1, "chat:-1:10", 10);
-    await pinnedMessageManager.onSessionChange("s1", "thread 10", "chat:-1:10");
-    await pinnedMessageManager.onMessageComplete(
-      { input: 100, output: 0, reasoning: 0, cacheRead: 20, cacheWrite: 0, cost: 0 },
-      "chat:-1:10",
-    );
-
-    expect(contextStateManager.get("chat:-1:10")).toEqual({ tokensUsed: 120, tokensLimit: 400000 });
-
-    await pinnedMessageManager.clear("chat:-1:10");
-
-    expect(contextStateManager.get("chat:-1:10")).toBeNull();
   });
 });

@@ -872,12 +872,10 @@ async function ensureEventSubscription(directory: string): Promise<void> {
     enqueueSessionDelivery(sessionId, async () => {
       try {
         await liveStream.flushSession(sessionId);
-        const pendingCompletions = pendingAssistantCompletions.consume(sessionId);
-        if (pendingCompletions.length > 0) {
-          for (const pendingCompletion of pendingCompletions) {
-            await deliverAssistantCompletion(sessionId, pendingCompletion);
-          }
-
+        const pendingCompletion = pendingAssistantCompletions.peek(sessionId);
+        if (pendingCompletion) {
+          await deliverAssistantCompletion(sessionId, pendingCompletion);
+          pendingAssistantCompletions.clear(sessionId);
           await liveStream.cleanupAfterFinalDelivery(sessionId);
         }
 

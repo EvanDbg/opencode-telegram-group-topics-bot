@@ -1,5 +1,5 @@
 export class PendingAssistantCompletions {
-  private readonly completions = new Map<string, string[]>();
+  private readonly completions = new Map<string, string>();
 
   enqueue(sessionId: string, messageText: string): void {
     const normalizedText = messageText.trim();
@@ -7,19 +7,11 @@ export class PendingAssistantCompletions {
       return;
     }
 
-    const existing = this.completions.get(sessionId) ?? [];
-    existing.push(normalizedText);
-    this.completions.set(sessionId, existing);
+    this.completions.set(sessionId, normalizedText);
   }
 
-  consume(sessionId: string): string[] {
-    const pending = this.completions.get(sessionId);
-    if (!pending || pending.length === 0) {
-      return [];
-    }
-
-    this.completions.delete(sessionId);
-    return [...pending];
+  peek(sessionId: string): string | null {
+    return this.completions.get(sessionId) ?? null;
   }
 
   clear(sessionId: string): void {

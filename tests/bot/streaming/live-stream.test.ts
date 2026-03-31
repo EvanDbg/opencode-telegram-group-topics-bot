@@ -198,20 +198,4 @@ describe("bot/streaming/live-stream", () => {
     expect(deleteText).toHaveBeenCalledWith("s1", 81);
     expect(editText).not.toHaveBeenCalled();
   });
-
-  it("deletes only the active stream message when clearing a session", async () => {
-    vi.useFakeTimers();
-
-    const sendText = vi.fn().mockResolvedValue(91);
-    const editText = vi.fn().mockResolvedValue(undefined);
-    const deleteText = vi.fn().mockResolvedValue(undefined);
-    const stream = new LiveStream({ sendText, editText, deleteText, throttleMs: 50 });
-
-    await stream.updateAssistant("s1", "m1", "Transient stream text");
-    await vi.advanceTimersByTimeAsync(50);
-
-    await stream.clearSession("s1", "test_clear");
-
-    expect(deleteText).toHaveBeenCalledWith("s1", 91);
-  });
 });

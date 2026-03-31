@@ -22,8 +22,6 @@ interface ScopeContext {
   debounceTimer: ReturnType<typeof setTimeout> | null;
 }
 
-const DEFAULT_CONTEXT_LIMIT = 200_000;
-
 class PinnedMessageManager {
   private contexts = new Map<string, ScopeContext>();
   private createDefaultState(scopeKey: string): PinnedMessageState {
@@ -365,7 +363,7 @@ class PinnedMessageManager {
     try {
       const model = getStoredModel(scopeKey);
       if (!model.providerID || !model.modelID) {
-        context.contextLimit = DEFAULT_CONTEXT_LIMIT;
+        context.contextLimit = 200000;
         context.state.tokensLimit = context.contextLimit;
         this.syncSharedContext(scopeKey);
         return;
@@ -373,7 +371,7 @@ class PinnedMessageManager {
 
       const { data: providersData, error } = await opencodeClient.config.providers();
       if (error || !providersData) {
-        context.contextLimit = DEFAULT_CONTEXT_LIMIT;
+        context.contextLimit = 200000;
         context.state.tokensLimit = context.contextLimit;
         this.syncSharedContext(scopeKey);
         return;
@@ -393,11 +391,11 @@ class PinnedMessageManager {
         }
       }
 
-      context.contextLimit = DEFAULT_CONTEXT_LIMIT;
+      context.contextLimit = 200000;
       context.state.tokensLimit = context.contextLimit;
       this.syncSharedContext(scopeKey);
     } catch {
-      context.contextLimit = DEFAULT_CONTEXT_LIMIT;
+      context.contextLimit = 200000;
       context.state.tokensLimit = context.contextLimit;
       this.syncSharedContext(scopeKey);
     }
@@ -566,9 +564,6 @@ class PinnedMessageManager {
 
   async clear(scopeKey: string = "global"): Promise<void> {
     const context = this.getContext(scopeKey);
-    const preservedThreadId = context.state.threadId;
-    const preservedChatId = context.state.chatId;
-
     if (context.api && context.chatId && context.state.messageId) {
       await this.retryTelegramCall(
         "clear pinned unpin",
@@ -585,13 +580,7 @@ class PinnedMessageManager {
       context.debounceTimer = null;
     }
 
-    context.state = {
-      ...this.createDefaultState(scopeKey),
-      chatId: preservedChatId,
-      threadId: preservedThreadId,
-    };
-    context.contextLimit = null;
-    contextStateManager.clear(scopeKey);
+    context.state = this.createDefaultState(scopeKey);
     this.clearPersistedPinnedId(scopeKey);
   }
 }

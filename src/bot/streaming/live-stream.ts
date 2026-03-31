@@ -459,27 +459,13 @@ export class LiveStream {
   }
 
   async clearSession(sessionId: string, reason: string): Promise<void> {
-    const state = this.states.get(sessionId);
-    if (!state) {
+    if (!this.states.has(sessionId)) {
       return;
     }
 
     logger.debug(`[LiveStream] Clearing session state: session=${sessionId}, reason=${reason}`);
     this.clearTimer(sessionId);
-    await this.enqueueTask(sessionId, async () => {
-      if (state.messageId !== null && this.deleteText) {
-        try {
-          await this.deleteText(sessionId, state.messageId);
-        } catch (error) {
-          logger.debug("[LiveStream] Failed to delete active stream message during clear", {
-            sessionId,
-            reason,
-            error,
-          });
-        }
-      }
-    });
-
+    await this.enqueueTask(sessionId, async () => undefined);
     this.states.delete(sessionId);
   }
 
