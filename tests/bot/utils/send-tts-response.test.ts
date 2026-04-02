@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { InputFile } from "grammy";
 import { sendTtsResponseForSession } from "../../../src/bot/utils/send-tts-response.js";
+import { t } from "../../../src/i18n/index.js";
 
 vi.mock("../../../src/utils/logger.js", () => ({
   logger: {
@@ -14,6 +15,7 @@ vi.mock("../../../src/utils/logger.js", () => ({
 describe("bot/utils/send-tts-response", () => {
   it("sends audio when the session response mode requires TTS", async () => {
     const sendAudioMock = vi.fn().mockResolvedValue(undefined);
+    const sendMessageMock = vi.fn().mockResolvedValue(undefined);
     const synthesizeSpeechMock = vi.fn().mockResolvedValue({
       buffer: Buffer.from("mp3"),
       filename: "assistant-reply.mp3",
@@ -21,7 +23,7 @@ describe("bot/utils/send-tts-response", () => {
     });
 
     const result = await sendTtsResponseForSession({
-      api: { sendAudio: sendAudioMock },
+      api: { sendAudio: sendAudioMock, sendMessage: sendMessageMock },
       sessionId: "session-1",
       chatId: 123,
       threadId: 55,
@@ -38,14 +40,16 @@ describe("bot/utils/send-tts-response", () => {
     expect(chatId).toBe(123);
     expect(inputFile).toBeInstanceOf(InputFile);
     expect(options).toEqual({ message_thread_id: 55 });
+    expect(sendMessageMock).not.toHaveBeenCalled();
   });
 
   it("skips audio when the session response mode is text only", async () => {
     const sendAudioMock = vi.fn().mockResolvedValue(undefined);
+    const sendMessageMock = vi.fn().mockResolvedValue(undefined);
     const synthesizeSpeechMock = vi.fn();
 
     const result = await sendTtsResponseForSession({
-      api: { sendAudio: sendAudioMock },
+      api: { sendAudio: sendAudioMock, sendMessage: sendMessageMock },
       sessionId: "session-1",
       chatId: 123,
       threadId: null,
@@ -58,14 +62,16 @@ describe("bot/utils/send-tts-response", () => {
     expect(result).toBe(false);
     expect(synthesizeSpeechMock).not.toHaveBeenCalled();
     expect(sendAudioMock).not.toHaveBeenCalled();
+    expect(sendMessageMock).not.toHaveBeenCalled();
   });
 
   it("skips audio when TTS is not configured", async () => {
     const sendAudioMock = vi.fn().mockResolvedValue(undefined);
+    const sendMessageMock = vi.fn().mockResolvedValue(undefined);
     const synthesizeSpeechMock = vi.fn();
 
     const result = await sendTtsResponseForSession({
-      api: { sendAudio: sendAudioMock },
+      api: { sendAudio: sendAudioMock, sendMessage: sendMessageMock },
       sessionId: "session-1",
       chatId: 123,
       threadId: null,
@@ -78,12 +84,40 @@ describe("bot/utils/send-tts-response", () => {
     expect(result).toBe(false);
     expect(synthesizeSpeechMock).not.toHaveBeenCalled();
     expect(sendAudioMock).not.toHaveBeenCalled();
+    expect(sendMessageMock).not.toHaveBeenCalled();
+  });
+
+  it("sends a user-facing error when audio generation fails", async () => {
+    const sendAudioMock = vi.fn().mockRejectedValue(new Error("tts failed"));
+    const sendMessageMock = vi.fn().mockResolvedValue(undefined);
+    const synthesizeSpeechMock = vi.fn().mockResolvedValue({
+      buffer: Buffer.from("mp3"),
+      filename: "assistant-reply.mp3",
+      mimeType: "audio/mpeg",
+    });
+
+    const result = await sendTtsResponseForSession({
+      api: { sendAudio: sendAudioMock, sendMessage: sendMessageMock },
+      sessionId: "session-1",
+      chatId: 123,
+      threadId: 55,
+      text: "Hello from audio",
+      consumeResponseMode: () => "text_and_tts",
+      isTtsConfigured: () => true,
+      synthesizeSpeech: synthesizeSpeechMock,
+    });
+
+    expect(result).toBe(false);
+    expect(sendMessageMock).toHaveBeenCalledWith(123, t("tts.failed"), {
+      message_thread_id: 55,
+    });
   });
 
   it("retries audio send when Telegram returns retry_after", async () => {
     vi.useFakeTimers();
 
     let attempts = 0;
+    const sendMessageMock = vi.fn().mockResolvedValue(undefined);
     const sendAudioMock = vi.fn().mockImplementation(async () => {
       attempts += 1;
       if (attempts === 1) {
@@ -98,7 +132,7 @@ describe("bot/utils/send-tts-response", () => {
     });
 
     const resultPromise = sendTtsResponseForSession({
-      api: { sendAudio: sendAudioMock },
+      api: { sendAudio: sendAudioMock, sendMessage: sendMessageMock },
       sessionId: "session-1",
       chatId: 123,
       threadId: 55,
@@ -111,6 +145,7 @@ describe("bot/utils/send-tts-response", () => {
     await vi.advanceTimersByTimeAsync(2100);
     await expect(resultPromise).resolves.toBe(true);
     expect(sendAudioMock).toHaveBeenCalledTimes(2);
+    expect(sendMessageMock).not.toHaveBeenCalled();
 
     vi.useRealTimers();
   });

@@ -7,7 +7,7 @@ export const es: I18nDictionary = {
   "cmd.description.stop": "Detener la acción actual",
   "cmd.description.sessions": "Listar sesiones",
   "cmd.description.last": "Mostrar el último mensaje de la sesión",
-  "cmd.description.tts": "Alternar respuestas TTS",
+  "cmd.description.tts": "Alternar respuestas de audio",
   "cmd.description.projects": "Listar proyectos",
   "cmd.description.task": "Crear una tarea programada",
   "cmd.description.tasklist": "Listar tareas programadas",
@@ -123,10 +123,11 @@ export const es: I18nDictionary = {
   "status.server_unavailable":
     "🔴 OpenCode Server no está disponible\n\nUsa /opencode_start para iniciar el servidor.",
 
-  "tts.enabled": "🔊 Respuestas TTS activadas para este ámbito del chat.",
-  "tts.enabled_not_configured":
-    "🔊 Respuestas TTS activadas para este ámbito del chat.\n\nLas credenciales de TTS todavía no están configuradas. Define `TTS_API_URL` y `TTS_API_KEY`, o deja que usen como respaldo `STT_API_URL` y `STT_API_KEY`.",
-  "tts.disabled": "🔇 Respuestas TTS desactivadas para este ámbito del chat.",
+  "tts.enabled": "🔊 Respuestas de audio activadas globalmente.",
+  "tts.not_configured":
+    "⚠️ Las respuestas de audio no estan disponibles. Configura primero `TTS_API_URL` y `TTS_API_KEY`.",
+  "tts.disabled": "🔇 Respuestas de audio desactivadas globalmente.",
+  "tts.failed": "⚠️ No se pudo generar la respuesta de audio.",
 
   "projects.empty":
     "📭 No se encontraron proyectos.\n\nAbre un directorio en OpenCode y crea al menos una sesión; entonces aparecerá aquí.",

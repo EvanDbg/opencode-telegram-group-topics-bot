@@ -5,7 +5,7 @@ export const en = {
   "cmd.description.stop": "Stop current action",
   "cmd.description.sessions": "List sessions",
   "cmd.description.last": "Show latest session message",
-  "cmd.description.tts": "Toggle TTS replies",
+  "cmd.description.tts": "Toggle audio replies",
   "cmd.description.projects": "List projects",
   "cmd.description.task": "Create a scheduled task",
   "cmd.description.tasklist": "List scheduled tasks",
@@ -122,10 +122,11 @@ export const en = {
   "status.server_unavailable":
     "🔴 OpenCode Server is unavailable\n\nUse /opencode_start to start the server.",
 
-  "tts.enabled": "🔊 TTS replies enabled for this chat scope.",
-  "tts.enabled_not_configured":
-    "🔊 TTS replies enabled for this chat scope.\n\nTTS credentials are not configured yet. Set `TTS_API_URL` and `TTS_API_KEY`, or let them fall back to `STT_API_URL` and `STT_API_KEY`.",
-  "tts.disabled": "🔇 TTS replies disabled for this chat scope.",
+  "tts.enabled": "🔊 Audio replies enabled globally.",
+  "tts.not_configured":
+    "⚠️ Audio replies are unavailable. Set `TTS_API_URL` and `TTS_API_KEY` first.",
+  "tts.disabled": "🔇 Audio replies disabled globally.",
+  "tts.failed": "⚠️ Failed to generate audio reply.",
 
   "dm.restricted.command":
     "⚠️ Session control commands are disabled in DM. Use a group topic thread for project/session work.",

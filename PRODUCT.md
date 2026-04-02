@@ -89,7 +89,7 @@ No public inbound ports are required for normal usage.
 - Configurable visibility for service messages (thinking/tool calls)
 - Configurable max code file size in KB (default: 100)
 - Optional STT settings for voice transcription (`STT_API_URL`, `STT_API_KEY`, `STT_MODEL`, `STT_LANGUAGE`)
-- Optional TTS credentials for audio replies (`TTS_API_URL`, `TTS_API_KEY`, `TTS_MODEL`, `TTS_VOICE`); reply behavior is toggled globally with `/tts`
+- Optional TTS credentials for global audio replies (`TTS_API_URL`, `TTS_API_KEY`, `TTS_MODEL`, `TTS_VOICE`); reply behavior is toggled with `/tts`
 
 ## Current Product Scope
 
@@ -112,7 +112,7 @@ Current command set:
 
 Model, agent, variant, and context actions are available from the persistent bottom keyboard.
 
-Text messages (non-commands) are treated as prompts for OpenCode only when no blocking interaction is active. Voice/audio messages are transcribed and then sent as prompts when STT is configured. When `/tts` is enabled globally, completed assistant replies also include a generated audio file.
+Text messages (non-commands) are treated as prompts for OpenCode only when no blocking interaction is active. Voice/audio messages are transcribed and then sent as prompts when STT is configured. When `/tts` is enabled globally, completed assistant replies also include a generated audio file if TTS is configured.
 
 Interaction routing rules:
 
@@ -149,7 +149,7 @@ Model picker behavior:
 - [x] Configurable batching of service messages (thinking + tool updates): recommended `>=2` sec for Telegram rate limits; `0` = immediate
 - [x] Configurable service message visibility via env flags (`HIDE_THINKING_MESSAGES`, `HIDE_TOOL_CALL_MESSAGES`)
 - [x] Voice/audio transcription via Whisper-compatible APIs (OpenAI/Groq/Together and compatible providers)
-- [x] Optional TTS audio replies with global `/tts` toggle via OpenAI-compatible APIs
+- [x] Optional global audio replies with `/tts` via OpenAI-compatible APIs
 - [x] Single-user security model (allowed Telegram user ID)
 - [x] Persistent bot settings (`settings.json`) between restarts
 - [x] Localization structure via dedicated i18n files

@@ -2,6 +2,7 @@ import { InputFile } from "grammy";
 import { getThreadSendOptions } from "../scope.js";
 import { consumePromptResponseMode } from "../handlers/prompt.js";
 import { isTtsConfigured, synthesizeSpeech, type TtsResult } from "../../tts/client.js";
+import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/logger.js";
 import { getTelegramRetryAfterMs } from "./send-with-markdown-fallback.js";
 
@@ -13,6 +14,7 @@ interface TelegramAudioApi {
     audio: InputFile,
     other?: Record<string, unknown>,
   ) => Promise<unknown>;
+  sendMessage: (chatId: number, text: string, other?: Record<string, unknown>) => Promise<unknown>;
 }
 
 interface SendTtsResponseParams {
@@ -84,6 +86,15 @@ export async function sendTtsResponseForSession({
     return true;
   } catch (error) {
     logger.warn(`[TTS] Failed to send audio reply for session ${sessionId}`, error);
+
+    await api
+      .sendMessage(chatId, t("tts.failed"), {
+        ...getThreadSendOptions(threadId),
+      })
+      .catch((sendError) => {
+        logger.warn(`[TTS] Failed to send audio error message for session ${sessionId}`, sendError);
+      });
+
     return false;
   }
 }

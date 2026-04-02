@@ -25,7 +25,7 @@ describe("bot/commands/tts", () => {
     mocked.isTtsConfiguredMock.mockReset();
   });
 
-  it("enables TTS replies for the current scope", async () => {
+  it("enables audio replies globally", async () => {
     mocked.isTtsEnabledMock.mockReturnValue(false);
     mocked.isTtsConfiguredMock.mockReturnValue(true);
     const sendMessageMock = vi.fn().mockResolvedValue(undefined);
@@ -42,7 +42,26 @@ describe("bot/commands/tts", () => {
     expect(sendMessageMock).toHaveBeenCalledWith(-100, t("tts.enabled"), { message_thread_id: 22 });
   });
 
-  it("disables TTS replies for the current scope", async () => {
+  it("does not enable audio replies when TTS is not configured", async () => {
+    mocked.isTtsEnabledMock.mockReturnValue(false);
+    mocked.isTtsConfiguredMock.mockReturnValue(false);
+    const sendMessageMock = vi.fn().mockResolvedValue(undefined);
+    const ctx = {
+      chat: { id: -100, type: "supergroup" },
+      message: { text: "/tts", message_thread_id: 22 },
+      reply: vi.fn().mockResolvedValue(undefined),
+      api: { sendMessage: sendMessageMock },
+    } as unknown as Context;
+
+    await ttsCommand(ctx as never);
+
+    expect(mocked.setTtsEnabledMock).not.toHaveBeenCalled();
+    expect(sendMessageMock).toHaveBeenCalledWith(-100, t("tts.not_configured"), {
+      message_thread_id: 22,
+    });
+  });
+
+  it("disables audio replies globally", async () => {
     mocked.isTtsEnabledMock.mockReturnValue(true);
     const sendMessageMock = vi.fn().mockResolvedValue(undefined);
     const ctx = {

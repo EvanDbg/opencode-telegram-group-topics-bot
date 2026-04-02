@@ -6,7 +6,12 @@ export const fr: I18nDictionary = {
   "cmd.description.new": "Créer une nouvelle session",
   "cmd.description.sessions": "Lister les sessions",
   "cmd.description.last": "Afficher le dernier message de la session",
-  "cmd.description.tts": "Basculer les réponses TTS",
+  "cmd.description.tts": "Basculer les réponses audio",
+  "tts.enabled": "🔊 Réponses audio activées globalement.",
+  "tts.not_configured":
+    "⚠️ Les réponses audio ne sont pas disponibles. Définissez d'abord `TTS_API_URL` et `TTS_API_KEY`.",
+  "tts.disabled": "🔇 Réponses audio désactivées globalement.",
+  "tts.failed": "⚠️ Impossible de générer la réponse audio.",
   "cmd.description.projects": "Lister les projets",
   "cmd.description.task": "Créer une tâche planifiée",
   "cmd.description.tasklist": "Lister les tâches planifiées",

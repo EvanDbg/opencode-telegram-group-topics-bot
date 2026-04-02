@@ -7,7 +7,7 @@ export const ru: I18nDictionary = {
   "cmd.description.stop": "Прервать текущее действие",
   "cmd.description.sessions": "Список сессий",
   "cmd.description.last": "Показать последнее сообщение сессии",
-  "cmd.description.tts": "Переключить TTS-ответы",
+  "cmd.description.tts": "Переключить аудиоответы",
   "cmd.description.projects": "Список проектов",
   "cmd.description.task": "Создать отложенную задачу",
   "cmd.description.tasklist": "Список отложенных задач",
@@ -117,10 +117,10 @@ export const ru: I18nDictionary = {
   "status.server_unavailable":
     "🔴 OpenCode Server недоступен\n\nИспользуйте /opencode_start для запуска сервера.",
 
-  "tts.enabled": "🔊 TTS-ответы включены для этой области чата.",
-  "tts.enabled_not_configured":
-    "🔊 TTS-ответы включены для этой области чата.\n\nУчетные данные TTS пока не настроены. Укажите `TTS_API_URL` и `TTS_API_KEY` или используйте `STT_API_URL` и `STT_API_KEY` как резервный вариант.",
-  "tts.disabled": "🔇 TTS-ответы выключены для этой области чата.",
+  "tts.enabled": "🔊 Аудиоответы включены глобально.",
+  "tts.not_configured": "⚠️ Аудиоответы недоступны. Сначала укажите `TTS_API_URL` и `TTS_API_KEY`.",
+  "tts.disabled": "🔇 Аудиоответы выключены глобально.",
+  "tts.failed": "⚠️ Не удалось создать аудиоответ.",
 
   "projects.empty":
     "📭 Проектов нет.\n\nОткройте директорию в OpenCode и создайте хотя бы одну сессию, после этого она появится здесь.",
